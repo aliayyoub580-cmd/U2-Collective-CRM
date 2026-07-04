@@ -1,0 +1,82 @@
+{
+  "name": "u2-crm-electron",
+  "version": "1.0.0",
+  "description": "U2 Collective LLP CRM Desktop Software",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm run server\" \"npm run vite\" \"wait-on http://127.0.0.1:5173/index.html http://127.0.0.1:3001/api/health && electron .\"",
+    "server": "node server/index.js",
+    "vite": "vite",
+    "build": "vite build",
+    "electron": "electron .",
+    "dist": "npm run build && electron-builder",
+    "migrate:supabase": "node scripts/migrate-sqlite-to-supabase.js",
+    "export:supabase-sql": "node scripts/export-sqlite-to-supabase-sql.js"
+  },
+  "build": {
+    "appId": "com.u2collective.crm",
+    "productName": "U2 Collective CRM",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "server/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "U2 Collective CRM",
+      "license": "build/license.txt",
+      "artifactName": "U2-CRM-Setup-${version}.exe"
+    }
+  },
+  "author": "U2 Collective LLP",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "lucide-react": "^0.263.1",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.22.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.17.0",
+    "recharts": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4",
+    "postcss": "^8.4.31",
+    "sql.js": "^1.14.1",
+    "tailwindcss": "^3.3.5",
+    "vite": "^4.4.5",
+    "wait-on": "^7.2.0"
+  }
+}

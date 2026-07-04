@@ -1,0 +1,335 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #2563EB;
+  --primary-dark: #1E40AF;
+  --bg: #F8FAFC;
+  --sidebar: #0F172A;
+  --card: #FFFFFF;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border: #E2E8F0;
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+  --purple: #7C3AED;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #F8FAFC;
+  color: #0F172A;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+/* Form inputs */
+input, select, textarea {
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+input[aria-label="Search CRM"]:focus {
+  border-color: transparent !important;
+  box-shadow: none;
+}
+
+.lead-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+@media (max-width: 640px) {
+  .lead-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lead-form-grid > div {
+    grid-column: auto !important;
+  }
+}
+
+/* Table hover */
+.table-row-hover:hover {
+  background: #F8FAFC !important;
+}
+
+/* Badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* No select on interactive elements */
+button {
+  user-select: none;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.25);
+  outline-offset: 2px;
+}
+
+/* Stat card gradient icons */
+.icon-blue { background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #2563EB; }
+.icon-green { background: linear-gradient(135deg, #DCFCE7, #BBF7D0); color: #16A34A; }
+.icon-purple { background: linear-gradient(135deg, #EDE9FE, #DDD6FE); color: #7C3AED; }
+.icon-orange { background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #D97706; }
+.icon-red { background: linear-gradient(135deg, #FEE2E2, #FECACA); color: #DC2626; }
+.icon-cyan { background: linear-gradient(135deg, #CFFAFE, #A5F3FC); color: #0891B2; }
+
+@keyframes quranFadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes quranSkeletonPulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+
+.quran-card {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  background-color: #020617;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(34, 211, 238, 0.18) 1px, transparent 0);
+  background-size: 22px 22px;
+  box-shadow: 0 0 30px rgba(34, 211, 238, 0.18);
+}
+
+.quran-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(8, 145, 178, 0.16), transparent 42%),
+    linear-gradient(315deg, rgba(37, 99, 235, 0.13), transparent 46%);
+  pointer-events: none;
+}
+
+.quran-card-header,
+.quran-ayat-content,
+.quran-dots,
+.quran-error-text,
+.quran-skeleton {
+  position: relative;
+  z-index: 1;
+}
+
+.quran-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.quran-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  color: #67e8f9;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quran-reference-badge {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.quran-ayat-content {
+  animation: quranFadeSlide 520ms ease-out;
+}
+
+.quran-arabic {
+  margin: 0;
+  font-size: 26px;
+  line-height: 2;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: right;
+  direction: rtl;
+}
+
+.quran-urdu {
+  margin: 18px 0 0;
+  font-size: 20px;
+  line-height: 2;
+  color: #e2e8f0;
+  text-align: right;
+  direction: rtl;
+}
+
+.quran-reference {
+  margin: 18px 0 0;
+  font-size: 14px;
+  color: #94a3b8;
+  text-align: right;
+}
+
+.quran-dots {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 22px;
+}
+
+.quran-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.38);
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.quran-dot-active {
+  width: 20px;
+  background: #22d3ee;
+}
+
+.quran-card-skeleton {
+  min-height: 250px;
+}
+
+.quran-skeleton {
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.14), rgba(226, 232, 240, 0.2), rgba(34, 211, 238, 0.14));
+  animation: quranSkeletonPulse 1.3s ease-in-out infinite;
+}
+
+.quran-skeleton-badge {
+  width: 110px;
+  height: 30px;
+  margin-left: auto;
+  margin-bottom: 34px;
+}
+
+.quran-skeleton-line {
+  width: 72%;
+  height: 22px;
+  margin: 18px 0 0 auto;
+}
+
+.quran-skeleton-line-wide {
+  width: 92%;
+}
+
+.quran-skeleton-reference {
+  width: 170px;
+  height: 18px;
+  margin: 28px 0 0 auto;
+}
+
+.quran-card-error {
+  min-height: 180px;
+}
+
+.quran-error-text {
+  margin-top: 28px;
+  color: #e2e8f0;
+  font-size: 18px;
+  line-height: 1.9;
+  text-align: right;
+}
+
+.quran-error-text p {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .quran-card {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .quran-card-header {
+    align-items: flex-end;
+    flex-direction: column;
+  }
+
+  .quran-arabic {
+    font-size: 22px;
+  }
+
+  .quran-urdu {
+    font-size: 17px;
+  }
+}

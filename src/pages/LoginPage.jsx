@@ -11,6 +11,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const getErrorMessage = (err) => {
+    const data = err.response?.data;
+    const message = data?.error || data?.message || err.message;
+    if (typeof message === 'string') return message;
+    if (typeof data === 'string') return data;
+    if (err.response?.status === 404) {
+      return 'Login API was not found. Please redeploy with the Vercel API configuration.';
+    }
+    return 'Login failed. Please try again.';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -19,7 +30,7 @@ export default function LoginPage() {
       await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

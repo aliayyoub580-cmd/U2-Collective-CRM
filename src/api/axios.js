@@ -29,7 +29,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('u2crm_token');
       localStorage.removeItem('u2crm_user');
-      if (window.location.protocol === 'file:') {
+      if (window.location.protocol === 'file:' || window.location.hash) {
         window.location.hash = '#/login';
       } else {
         window.location.href = '/login';

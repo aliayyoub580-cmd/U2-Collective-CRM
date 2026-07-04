@@ -57,17 +57,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`U2 CRM Server running on http://${HOST}:${PORT}`);
-});
+if (require.main === module) {
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`U2 CRM Server running on http://${HOST}:${PORT}`);
+  });
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`U2 CRM Server could not start: http://${HOST}:${PORT} is already in use.`);
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`U2 CRM Server could not start: http://${HOST}:${PORT} is already in use.`);
+      process.exit(1);
+    }
+    console.error('U2 CRM Server failed to start:', err);
     process.exit(1);
-  }
-  console.error('U2 CRM Server failed to start:', err);
-  process.exit(1);
-});
+  });
+}
 
 module.exports = app;

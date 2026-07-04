@@ -1,15 +1,15 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const fs = require('fs');
 require('./utils/loadEnv')();
 const seedSupabase = require('./database/seedSupabase');
+const { uploadsPath, backupsPath } = require('./utils/runtimePaths');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
-const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
-const backupsDir = process.env.BACKUPS_DIR || path.join(__dirname, 'backups');
+const uploadsDir = uploadsPath();
+const backupsDir = backupsPath();
 
 [uploadsDir, backupsDir].forEach((dir) => {
   if (!fs.existsSync(dir)) {

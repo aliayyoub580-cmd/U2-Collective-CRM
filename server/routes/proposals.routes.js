@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
 const sb = require('../database/supabaseClient');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { logActivity } = require('../utils/activity');
 const asyncHandler = require('../utils/asyncHandler');
 const { mapById, pageOptions } = require('../utils/supabaseRelations');
+const { uploadsPath } = require('../utils/runtimePaths');
 
-const uploadDir = path.join(process.env.UPLOADS_DIR || path.join(__dirname, '../uploads'), 'proposals');
+const uploadDir = uploadsPath('proposals');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({

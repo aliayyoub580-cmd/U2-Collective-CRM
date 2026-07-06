@@ -29,6 +29,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -88,6 +93,142 @@ input[aria-label="Search CRM"]:focus {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.filters-bar {
+  flex-wrap: wrap;
+}
+
+.filters-bar > * {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .app-sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(82vw, 280px) !important;
+    max-width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease !important;
+    box-shadow: 16px 0 40px rgba(15, 23, 42, 0.22);
+  }
+
+  .app-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .mobile-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: block;
+    border: 0;
+    background: rgba(15, 23, 42, 0.38);
+  }
+
+  .app-header {
+    height: auto !important;
+    min-height: 64px;
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+
+  .app-header-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 16px !important;
+  }
+
+  .app-header-date {
+    display: none;
+  }
+
+  .app-main {
+    padding: 16px !important;
+  }
+
+  .page-header {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .page-header-actions > button,
+  .page-header-actions > a {
+    flex-shrink: 0;
+  }
+
+  .filters-bar {
+    align-items: stretch !important;
+    flex-direction: column;
+    padding: 14px !important;
+  }
+
+  .filters-bar > *,
+  .filters-bar select,
+  .filters-bar input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .form-grid-2,
+  .lead-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .form-grid-2 > div,
+  .lead-form-grid > div {
+    grid-column: auto !important;
+  }
+
+  .stats-grid,
+  .dashboard-charts-grid,
+  .detail-grid-2,
+  .detail-stats-grid,
+  .reports-grid-2,
+  .reports-stat-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-welcome {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px !important;
+  }
+
+  .dashboard-welcome > div:last-child {
+    text-align: left !important;
+  }
+
+  .data-table-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table-pagination {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {

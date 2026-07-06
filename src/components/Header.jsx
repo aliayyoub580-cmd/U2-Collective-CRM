@@ -43,7 +43,7 @@ export default function Header({ onToggleSidebar }) {
   };
 
   return (
-    <header style={{
+    <header className="app-header" style={{
       height: '72px',
       background: '#FFFFFF',
       borderBottom: '1px solid #E2E8F0',
@@ -63,7 +63,7 @@ export default function Header({ onToggleSidebar }) {
       </button>
 
       {/* Page title */}
-      <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', flexShrink: 0 }}>
+      <h1 className="app-header-title" style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', flexShrink: 0 }}>
         {pageTitle}
       </h1>
 
@@ -96,7 +96,7 @@ export default function Header({ onToggleSidebar }) {
       </div>
 
       {/* Today's date */}
-      <span style={{ fontSize: '13px', color: '#64748B', flexShrink: 0 }}>
+      <span className="app-header-date" style={{ fontSize: '13px', color: '#64748B', flexShrink: 0 }}>
         {new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
       </span>
 

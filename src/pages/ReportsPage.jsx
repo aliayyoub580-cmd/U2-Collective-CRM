@@ -124,7 +124,7 @@ export default function ReportsPage() {
           {activeTab === 'sales' && salesData && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Summary cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+              <div className="reports-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
                 {[
                   { label: 'Total Leads', value: salesData.total, color: '#2563EB' },
                   { label: 'Contracted', value: salesData.contracted, color: '#16A34A' },
@@ -139,7 +139,7 @@ export default function ReportsPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div className="reports-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 {/* By Status */}
                 <div style={cardStyle}>
                   <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', marginBottom: '16px' }}>Leads by Status</h3>
@@ -206,7 +206,7 @@ export default function ReportsPage() {
                 <p style={{ fontSize: '36px', fontWeight: '800', color: '#16A34A' }}>${Number(revenueData.total).toLocaleString()}</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div className="reports-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div style={cardStyle}>
                   <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', marginBottom: '16px' }}>Revenue by Month</h3>
                   <ResponsiveContainer width="100%" height={220}>
@@ -257,7 +257,7 @@ export default function ReportsPage() {
 
           {/* Lead Sources */}
           {activeTab === 'sources' && sourceData && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div className="reports-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               <div style={cardStyle}>
                 <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', marginBottom: '16px' }}>Leads by Source</h3>
                 <ResponsiveContainer width="100%" height={260}>

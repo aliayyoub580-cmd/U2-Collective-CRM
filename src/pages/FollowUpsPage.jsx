@@ -234,7 +234,7 @@ export default function FollowUpsPage() {
               <option value="">No lead linked</option>
               {leads.map(l => <option key={l.id} value={l.id}>{l.client_clinic_name || l.company_name}</option>)}
             </FormSelect>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <FormInput label="Date" type="date" required value={form.followup_date} onChange={(e) => setForm({ ...form, followup_date: e.target.value })} />
               <FormInput label="Time" type="time" value={form.followup_time} onChange={(e) => setForm({ ...form, followup_time: e.target.value })} />
             </div>

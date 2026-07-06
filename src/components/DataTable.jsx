@@ -22,8 +22,8 @@ export default function DataTable({ columns, data, onRowClick, loading, emptySta
 
   return (
     <div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="data-table-scroll" style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: '720px', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
               {columns.map((col, i) => (
@@ -76,7 +76,7 @@ export default function DataTable({ columns, data, onRowClick, loading, emptySta
 
       {/* Pagination */}
       {pagination && pagination.total > pagination.limit && (
-        <div style={{
+        <div className="data-table-pagination" style={{
           padding: '16px 20px',
           display: 'flex',
           alignItems: 'center',

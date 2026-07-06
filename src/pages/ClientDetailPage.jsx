@@ -57,7 +57,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      <div className="detail-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
         {[
           { label: 'Total Revenue', value: `$${Number(totalRevenue || 0).toLocaleString()}`, color: '#16A34A' },
           { label: 'Monthly Charges', value: `$${Number(client.monthly_charges || 0).toLocaleString()}`, color: '#2563EB' },
@@ -70,7 +70,7 @@ export default function ClientDetailPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      <div className="detail-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         {/* Left */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Client Info */}

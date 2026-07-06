@@ -175,7 +175,7 @@ export default function TasksPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <FormInput label="Task Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} error={errors.title} />
             <FormTextarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <FormSelect label="Assign To" required value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} error={errors.assigned_to}>
                 <option value="">Select employee</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}

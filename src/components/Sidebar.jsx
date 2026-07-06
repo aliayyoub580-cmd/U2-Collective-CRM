@@ -20,7 +20,7 @@ const navItems = [
   { path: '/settings', icon: Settings, label: 'Settings', module: 'dashboard' },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate }) {
   const { canAccess, user } = useAuth();
   const location = useLocation();
 
@@ -34,7 +34,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         transition: 'width 0.25s ease',
         flexShrink: 0
       }}
-      className="flex flex-col h-screen overflow-hidden relative"
+      className={`app-sidebar flex flex-col h-screen overflow-hidden relative ${mobileOpen ? 'mobile-open' : ''}`}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-4" style={{ minHeight: '72px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -74,6 +74,7 @@ export default function Sidebar({ collapsed, onToggle }) {
               <NavLink
                 key={item.path}
                 to={item.path}
+                onClick={onNavigate}
                 style={({ isActive: navActive }) => ({
                   display: 'flex',
                   alignItems: 'center',

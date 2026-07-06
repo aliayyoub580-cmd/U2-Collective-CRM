@@ -136,7 +136,7 @@ export default function EmployeesPage() {
               <p style={{ fontSize: '13px', color: '#DC2626' }}>{errors.general}</p>
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+          <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
             <FormInput label="Full Name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={errors.name} />
             <FormSelect label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               {ROLES.map(r => <option key={r}>{r}</option>)}

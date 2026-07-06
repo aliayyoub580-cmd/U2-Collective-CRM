@@ -136,7 +136,7 @@ export default function ProposalsPage() {
         <form onSubmit={handleSave}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <FormInput label="Proposal Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <FormSelect label="Related Lead" value={form.lead_id} onChange={(e) => setForm({ ...form, lead_id: e.target.value, client_id: '' })}>
                 <option value="">No lead</option>
                 {leads.map(l => <option key={l.id} value={l.id}>{l.company_name}</option>)}

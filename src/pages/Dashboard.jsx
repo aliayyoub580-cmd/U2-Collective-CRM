@@ -59,7 +59,7 @@ export default function Dashboard() {
   return (
     <div>
       {/* Welcome Banner */}
-      <div style={{
+      <div className="dashboard-welcome" style={{
         background: 'linear-gradient(135deg, #0F172A 0%, #1E40AF 100%)',
         borderRadius: '18px',
         padding: '24px 28px',
@@ -87,7 +87,7 @@ export default function Dashboard() {
       <DailyQuranAyatCard />
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '24px' }}>
         <StatCard title="Total Leads" value={stats?.totalLeads || 0} icon={Users} iconClass="icon-blue" trendLabel="All time" to="/leads" />
         <StatCard title="Active Clients" value={stats?.totalClients || 0} icon={Briefcase} iconClass="icon-green" trendLabel="Currently active" to="/clients" />
         <StatCard title="Follow-ups Today" value={stats?.followupsToday || 0} icon={Bell} iconClass="icon-orange" trendLabel="Pending today" to="/follow-ups" />
@@ -97,7 +97,7 @@ export default function Dashboard() {
       </div>
 
       {/* Charts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+      <div className="dashboard-charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '24px', marginBottom: '24px' }}>
         {/* Lead Status Chart */}
         <div style={cardStyle}>
           <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', marginBottom: '20px' }}>Lead Status Breakdown</h3>

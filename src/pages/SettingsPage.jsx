@@ -9,6 +9,8 @@ import { FormInput, FormSelect, PrimaryButton, SecondaryButton } from '../compon
 import StatusBadge from '../components/StatusBadge';
 
 const ROLES = ['CEO', 'Manager', 'Sales Representative', 'Marketing', 'Accountant', 'Employee'];
+const STAFF_ROLES = ROLES.filter((role) => role !== 'CEO');
+const initialUserForm = { name: '', email: '', password: '', role: 'Employee', employee_type: '', status: 'active' };
 
 export default function SettingsPage() {
   const { user, hasRole } = useAuth();
@@ -20,8 +22,10 @@ export default function SettingsPage() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [deleteUserId, setDeleteUserId] = useState(null);
-  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'Employee', status: 'active' });
+  const [userForm, setUserForm] = useState(initialUserForm);
   const [savingUser, setSavingUser] = useState(false);
+  const [userErrors, setUserErrors] = useState({});
+  const [userNotice, setUserNotice] = useState('');
 
   useEffect(() => {
     if (hasRole('CEO') && activeTab === 'users') {
@@ -42,24 +46,31 @@ export default function SettingsPage() {
     } finally { setProfileSaving(false); }
   };
 
-  const openCreateUser = () => { setUserForm({ name: '', email: '', password: '', role: 'Employee', status: 'active' }); setEditUser(null); setShowUserModal(true); };
-  const openEditUser = (u) => { setUserForm({ name: u.name, email: u.email, password: '', role: u.role, status: u.status }); setEditUser(u); setShowUserModal(true); };
+  const openCreateUser = () => { setUserForm(initialUserForm); setUserErrors({}); setEditUser(null); setShowUserModal(true); };
+  const openEditUser = (u) => { setUserForm({ name: u.name, email: u.email, password: '', role: u.role, employee_type: u.employee_type || '', status: u.status }); setUserErrors({}); setEditUser(u); setShowUserModal(true); };
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
+    if (STAFF_ROLES.includes(userForm.role) && !userForm.employee_type) {
+      setUserErrors({ employee_type: 'Select an employee type for this staff account.' });
+      return;
+    }
     setSavingUser(true);
+    setUserErrors({});
     try {
       if (editUser) await api.put(`/users/${editUser.id}`, userForm);
       else await api.post('/users', userForm);
       setShowUserModal(false);
+      setUserForm(initialUserForm);
+      setUserNotice(editUser ? 'User updated successfully.' : 'User created successfully.');
       api.get('/users').then(r => setUsers(r.data.users || []));
     } catch (err) {
-      console.error(err);
+      setUserErrors({ general: err.response?.data?.error || 'Unable to save this user.' });
     } finally { setSavingUser(false); }
   };
 
   const handleDeleteUser = async () => {
-    try { await api.delete(`/users/${deleteUserId}`); api.get('/users').then(r => setUsers(r.data.users || [])); } catch (err) {}
+    try { await api.delete(`/users/${deleteUserId}`); setUserNotice('User deactivated successfully.'); api.get('/users').then(r => setUsers(r.data.users || [])); } catch (err) { setUserNotice(err.response?.data?.error || 'Unable to deactivate this user.'); }
     setDeleteUserId(null);
   };
 
@@ -132,6 +143,7 @@ export default function SettingsPage() {
       {/* Users Tab */}
       {activeTab === 'users' && hasRole('CEO') && (
         <div>
+          {userNotice && <div style={{ padding: '10px 14px', borderRadius: '10px', marginBottom: '12px', background: '#EFF6FF', color: '#1D4ED8', fontSize: '13px', fontWeight: '600' }}>{userNotice}</div>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
             <PrimaryButton onClick={openCreateUser} icon={Plus}>Add User</PrimaryButton>
           </div>
@@ -205,19 +217,27 @@ export default function SettingsPage() {
       {/* User modal */}
       <Modal isOpen={showUserModal} onClose={() => setShowUserModal(false)} title={editUser ? 'Edit User' : 'Create User'} size="sm">
         <form onSubmit={handleSaveUser}>
+          {userErrors.general && <div style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px' }}>{userErrors.general}</div>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <FormInput label="Full Name" required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
             <FormInput label="Email" type="email" required value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
             {!editUser && <FormInput label="Password" type="password" required value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />}
-            <FormSelect label="Role" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}>
+            <FormSelect label="Role" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, employee_type: e.target.value === 'CEO' ? '' : userForm.employee_type })}>
               {ROLES.map(r => <option key={r}>{r}</option>)}
             </FormSelect>
+            {STAFF_ROLES.includes(userForm.role) && (
+              <FormSelect label="Employee Type" required value={userForm.employee_type} error={userErrors.employee_type} onChange={(e) => setUserForm({ ...userForm, employee_type: e.target.value })}>
+                <option value="">Select employee type</option>
+                <option value="lead_generator">Lead Generator</option>
+                <option value="caller">Caller</option>
+              </FormSelect>
+            )}
             <FormSelect label="Status" value={userForm.status} onChange={(e) => setUserForm({ ...userForm, status: e.target.value })}>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </FormSelect>
           </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px', position: 'sticky', bottom: 0, background: '#FFFFFF', paddingTop: '12px' }}>
             <SecondaryButton onClick={() => setShowUserModal(false)}>Cancel</SecondaryButton>
             <PrimaryButton type="submit" loading={savingUser}>{editUser ? 'Update' : 'Create'}</PrimaryButton>
           </div>

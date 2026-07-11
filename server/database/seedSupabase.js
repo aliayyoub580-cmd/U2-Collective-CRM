@@ -15,6 +15,7 @@ async function seedSupabase() {
     email: 'admin@u2collective.com',
     password: hashedPassword,
     role: 'CEO',
+    employee_type: null,
     status: 'active'
   });
 
@@ -85,6 +86,7 @@ async function seedSupabase() {
     user_id: adminId,
     name: 'Admin CEO',
     role: 'CEO',
+    employee_type: null,
     salary: 15000,
     phone: '+1-555-0001',
     email: 'admin@u2collective.com',

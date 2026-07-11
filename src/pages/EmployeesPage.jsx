@@ -9,8 +9,9 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import { FormInput, FormSelect, FormTextarea, PrimaryButton, SecondaryButton } from '../components/FormFields';
 
-const ROLES = ['CEO', 'Manager', 'Sales Representative', 'Marketing', 'Accountant', 'Employee'];
-const initialForm = { name: '', role: 'Employee', salary: '', phone: '', email: '', status: 'Active', joining_date: '', performance_notes: '', create_user: false, password: '', user_role: 'Employee' };
+const ROLES = ['Manager', 'Sales Representative', 'Marketing', 'Accountant', 'Employee'];
+const initialForm = { name: '', role: 'Employee', employee_type: '', salary: '', phone: '', email: '', status: 'Active', joining_date: '', performance_notes: '', password: '' };
+const employeeTypeLabel = (value) => value === 'lead_generator' ? 'Lead Generator' : value === 'caller' ? 'Caller' : 'Not Assigned';
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
@@ -24,21 +25,24 @@ export default function EmployeesPage() {
   const [form, setForm] = useState(initialForm);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [loadError, setLoadError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const res = await api.get('/employees', { params: { page, limit: 15, search } });
       setEmployees(res.data.employees);
       setTotal(res.data.total);
-    } catch (err) {} finally { setLoading(false); }
+    } catch (err) { setLoadError(err.response?.data?.error || 'Unable to load employees.'); } finally { setLoading(false); }
   }, [page, search]);
 
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
   const openCreate = () => { setForm(initialForm); setEditItem(null); setErrors({}); setShowModal(true); };
   const openEdit = (item) => {
-    setForm({ name: item.name, role: item.role || 'Employee', salary: item.salary || '', phone: item.phone || '', email: item.email || '', status: item.status, joining_date: item.joining_date || '', performance_notes: item.performance_notes || '', create_user: false, password: '', user_role: 'Employee' });
+    setForm({ name: item.name, role: item.role || 'Employee', employee_type: item.employee_type || '', salary: item.salary || '', phone: item.phone || '', email: item.email || '', status: item.status, joining_date: item.joining_date || '', performance_notes: item.performance_notes || '', password: '' });
     setEditItem(item); setErrors({}); setShowModal(true);
   };
 
@@ -46,6 +50,8 @@ export default function EmployeesPage() {
     const e = {};
     if (!form.name.trim()) e.name = 'Name is required';
     if (!form.email.trim()) e.email = 'Email is required';
+    if (!form.employee_type) e.employee_type = 'Select an employee type.';
+    if (!editItem && !form.password) e.password = 'Password is required for a new employee account.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -58,6 +64,7 @@ export default function EmployeesPage() {
       if (editItem) await api.put(`/employees/${editItem.id}`, form);
       else await api.post('/employees', form);
       setShowModal(false);
+      setNotice(editItem ? 'Employee updated successfully.' : 'Employee created successfully.');
       fetchEmployees();
     } catch (err) {
       const msg = err.response?.data?.error || 'Error saving employee';
@@ -66,7 +73,7 @@ export default function EmployeesPage() {
   };
 
   const handleDelete = async () => {
-    try { await api.delete(`/employees/${deleteId}`); fetchEmployees(); } catch (err) {}
+    try { await api.delete(`/employees/${deleteId}`); setNotice('Employee deactivated successfully.'); fetchEmployees(); } catch (err) { setNotice(err.response?.data?.error || 'Unable to deactivate employee.'); }
     setDeleteId(null);
   };
 
@@ -86,6 +93,7 @@ export default function EmployeesPage() {
       )
     },
     { header: 'Role', render: (row) => <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>{row.role}</span> },
+    { header: 'Employee Type', render: (row) => <span style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: '999px', background: row.employee_type ? '#EDE9FE' : '#F1F5F9', color: row.employee_type ? '#6D28D9' : '#64748B', fontSize: '11px', fontWeight: '600' }}>{employeeTypeLabel(row.employee_type)}</span> },
     { header: 'Salary', render: (row) => <span style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A' }}>{row.salary ? `$${Number(row.salary).toLocaleString()}` : '—'}</span> },
     { header: 'Phone', render: (row) => <span style={{ fontSize: '13px', color: '#475569' }}>{row.phone || '—'}</span> },
     { header: 'Joined', render: (row) => <span style={{ fontSize: '13px', color: '#475569' }}>{row.joining_date || '—'}</span> },
@@ -115,6 +123,7 @@ export default function EmployeesPage() {
       />
 
       {/* Search */}
+      {notice && <div style={{ padding: '10px 14px', borderRadius: '10px', marginBottom: '12px', background: '#EFF6FF', color: '#1D4ED8', fontSize: '13px', fontWeight: '600' }}>{notice}</div>}
       <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '14px 16px', marginBottom: '20px' }}>
         <div className="relative" style={{ maxWidth: '360px' }}>
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -124,9 +133,9 @@ export default function EmployeesPage() {
       </div>
 
       <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '18px', overflow: 'hidden' }}>
-        <DataTable columns={columns} data={employees} loading={loading}
+        {loadError ? <div style={{ padding: '48px', textAlign: 'center' }}><p style={{ color: '#DC2626', marginBottom: '14px' }}>{loadError}</p><PrimaryButton onClick={fetchEmployees}>Retry</PrimaryButton></div> : <DataTable columns={columns} data={employees} loading={loading}
           emptyState={<EmptyState icon={UserCog} title="No employees found" description="Add employees to manage your team." action={<PrimaryButton onClick={openCreate} icon={Plus}>Add Employee</PrimaryButton>} />}
-          pagination={{ page, limit: 15, total }} onPageChange={setPage} />
+          pagination={{ page, limit: 15, total }} onPageChange={setPage} />}
       </div>
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editItem ? 'Edit Employee' : 'Add Employee'} size="lg">
@@ -141,6 +150,11 @@ export default function EmployeesPage() {
             <FormSelect label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               {ROLES.map(r => <option key={r}>{r}</option>)}
             </FormSelect>
+            <FormSelect label="Employee Type" required value={form.employee_type} error={errors.employee_type} onChange={(e) => setForm({ ...form, employee_type: e.target.value })}>
+              <option value="">Select employee type</option>
+              <option value="lead_generator">Lead Generator</option>
+              <option value="caller">Caller</option>
+            </FormSelect>
             <FormInput label="Email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} />
             <FormInput label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             <FormInput label="Salary ($)" type="number" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} />
@@ -150,13 +164,7 @@ export default function EmployeesPage() {
               <option>Inactive</option>
             </FormSelect>
             {!editItem && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0' }}>
-                <input type="checkbox" id="create_user" checked={form.create_user} onChange={(e) => setForm({ ...form, create_user: e.target.checked })} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                <label htmlFor="create_user" style={{ fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>Create login account</label>
-              </div>
-            )}
-            {!editItem && form.create_user && (
-              <FormInput label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <FormInput label="Password" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} error={errors.password} />
             )}
             <div style={{ gridColumn: '1 / -1' }}>
               <FormTextarea label="Performance Notes" value={form.performance_notes} onChange={(e) => setForm({ ...form, performance_notes: e.target.value })} rows={3} />
@@ -169,7 +177,7 @@ export default function EmployeesPage() {
         </form>
       </Modal>
 
-      <ConfirmDialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete} title="Delete Employee" message="Remove this employee from the system?" confirmLabel="Delete" />
+      <ConfirmDialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete} title="Deactivate Employee" message="Deactivate this employee account? The record will remain visible as inactive." confirmLabel="Deactivate" />
     </div>
   );
 }

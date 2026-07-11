@@ -45,6 +45,8 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
     leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
     tasks = tasks.filter((task) => Number(task.assigned_to) === Number(user.id));
     followups = followups.filter((followup) => Number(followup.assigned_to) === Number(user.id));
+  } else if (user.role === 'Manager') {
+    leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
   } else if (user.role === 'Sales Representative') {
     leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
     tasks = tasks.filter((task) => Number(task.assigned_to) === Number(user.id));
@@ -71,6 +73,7 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
     totalLeadGenerated: leads.length,
     assignedLeads: leads.length,
     pendingLeads: leads.filter((lead) => ['Assigned', 'New', 'No Answer'].includes(lead.status)).length,
+    interestedLeads: leads.filter((lead) => lead.status === 'Interested').length,
     todaysFollowUps: followups.filter((followup) => followup.followup_date === today).length,
     todaysReminder: followups.filter((followup) => followup.followup_date === today && followup.status === 'Pending').length,
     totalLeads: leads.length,

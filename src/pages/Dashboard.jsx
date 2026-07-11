@@ -78,6 +78,19 @@ export default function Dashboard() {
     );
   }
 
+  if (user?.role === 'Manager') {
+    return (
+      <div>
+        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>Manager Dashboard</h2>
+        <p style={{ color: '#64748B', marginBottom: '24px' }}>Review routed healthcare leads and sales opportunities.</p>
+        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+          <StatCard title="Assigned Leads" value={stats?.assignedLeads || 0} icon={Users} iconClass="icon-blue" trendLabel="Routed for manager review" to="/leads" />
+          <StatCard title="Interested Leads" value={stats?.interestedLeads || 0} icon={TrendingUp} iconClass="icon-green" trendLabel="Qualified opportunities" to="/leads" />
+        </div>
+      </div>
+    );
+  }
+
   const cardStyle = {
     background: '#FFFFFF',
     border: '1px solid #E2E8F0',

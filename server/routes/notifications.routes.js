@@ -5,6 +5,17 @@ const { authenticateToken } = require('../middleware/auth');
 const asyncHandler = require('../utils/asyncHandler');
 
 router.get('/', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.employee_type === 'caller') {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: reminders } = await sb.list('followups', { select: 'id,lead_id,title,followup_time', filters: [['assigned_to', 'eq', req.user.id], ['followup_date', 'eq', today], ['status', 'eq', 'Pending']], limit: 100 });
+    const { data: existing } = await sb.list('notifications', { select: 'id,message', filters: [['user_id', 'eq', req.user.id], ['type', 'eq', 'today_reminder']], limit: 100 });
+    const existingKeys = new Set((existing || []).map((item) => item.message));
+    await Promise.all((reminders || []).map((reminder) => {
+      const message = `${reminder.title || 'Scheduled follow-up'} [reminder:${reminder.id}]`;
+      if (existingKeys.has(message)) return null;
+      return sb.insert('notifications', { user_id: req.user.id, lead_id: reminder.lead_id, type: 'today_reminder', title: `Today's Reminder${reminder.followup_time ? ` · ${reminder.followup_time}` : ''}`, message });
+    }));
+  }
   const { data } = await sb.list('notifications', { filters: [['user_id', 'eq', req.user.id]], order: 'created_at.desc', limit: 50 });
   res.json({ notifications: data || [], unread: (data || []).filter((item) => !item.is_read).length });
 }));

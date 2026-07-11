@@ -26,7 +26,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    // 401 means the session is no longer valid. A 403 only means the signed-in
+    // user cannot perform that operation and must never destroy their session.
+    if (error.response?.status === 401) {
       localStorage.removeItem('u2crm_token');
       localStorage.removeItem('u2crm_user');
       if (window.location.protocol === 'file:' || window.location.hash) {

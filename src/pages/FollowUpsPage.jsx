@@ -57,6 +57,7 @@ export default function FollowUpsPage() {
   useEffect(() => { fetchFollowups(); }, [fetchFollowups]);
 
   useEffect(() => {
+    if (user?.employee_type === 'caller') return;
     Promise.all([
       api.get('/leads', { params: { limit: 100 } }),
       api.get('/employees/users/all')
@@ -64,7 +65,7 @@ export default function FollowUpsPage() {
       setLeads(leadsRes.data.leads || []);
       setUsers(usersRes.data.users || []);
     }).catch(() => {});
-  }, []);
+  }, [user?.employee_type]);
 
   const openCreate = () => { setForm(initialForm); setEditItem(null); setShowModal(true); };
   const openEdit = (item) => {
@@ -182,7 +183,7 @@ export default function FollowUpsPage() {
         actions={
           <>
             <button onClick={fetchFollowups} className="p-2 rounded-xl hover:bg-[#F1F5F9] text-[#475569]"><RefreshCw size={16} /></button>
-            <PrimaryButton onClick={openCreate} icon={Plus}>Add Follow-up</PrimaryButton>
+            {user?.employee_type !== 'caller' && <PrimaryButton onClick={openCreate} icon={Plus}>Add Follow-up</PrimaryButton>}
           </>
         }
       />
@@ -223,7 +224,7 @@ export default function FollowUpsPage() {
           loading={loading}
           emptyState={
             <EmptyState icon={Bell} title="No follow-ups found" description="Schedule follow-ups to stay on top of your leads."
-              action={<PrimaryButton onClick={openCreate} icon={Plus}>Add Follow-up</PrimaryButton>} />
+              action={user?.employee_type !== 'caller' && <PrimaryButton onClick={openCreate} icon={Plus}>Add Follow-up</PrimaryButton>} />
           }
           pagination={{ page, limit: 15, total }}
           onPageChange={setPage}

@@ -64,9 +64,13 @@ export function AuthProvider({ children }) {
 
   const canAccess = (module) => {
     if (!user) return false;
+    if (module === 'profile') return true;
+    if (user.role === 'CEO') return true;
+    if (user.employee_type === 'lead_generator') return ['dashboard', 'leads', 'profile'].includes(module);
+    if (user.employee_type === 'caller') return ['dashboard', 'tasks', 'followups', 'profile'].includes(module);
     const permissions = {
       CEO: ['*'],
-      Manager: ['dashboard', 'leads', 'clients', 'employees', 'tasks', 'proposals', 'reports', 'followups', 'communications'],
+      Manager: ['dashboard', 'leads', 'reports', 'communications'],
       'Sales Representative': ['dashboard', 'leads', 'followups', 'communications', 'proposals'],
       Marketing: ['dashboard', 'leads', 'reports'],
       Accountant: ['dashboard', 'clients', 'reports'],
@@ -77,8 +81,10 @@ export function AuthProvider({ children }) {
     return userPerms.includes('*') || userPerms.includes(module);
   };
 
+  const employeeTypeLabel = user?.employee_type === 'lead_generator' ? 'Lead Generator' : user?.employee_type === 'caller' ? 'Caller' : null;
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, hasRole, canAccess }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, hasRole, canAccess, employeeTypeLabel }}>
       {children}
     </AuthContext.Provider>
   );

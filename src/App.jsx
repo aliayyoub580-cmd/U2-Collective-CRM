@@ -10,6 +10,7 @@ import LeadDetailPage from './pages/LeadDetailPage';
 import FollowUpsPage from './pages/FollowUpsPage';
 import CommunicationsPage from './pages/CommunicationsPage';
 import TasksPage from './pages/TasksPage';
+import CallerTasksPage from './pages/CallerTasksPage';
 import ProposalsPage from './pages/ProposalsPage';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
@@ -76,7 +77,7 @@ export default function App() {
         <PrivateRoute module="communications"><CommunicationsPage /></PrivateRoute>
       } />
       <Route path="/tasks" element={
-        <PrivateRoute module="tasks"><TasksPage /></PrivateRoute>
+        <PrivateRoute module="tasks">{user?.employee_type === 'caller' ? <CallerTasksPage /> : <TasksPage />}</PrivateRoute>
       } />
       <Route path="/proposals" element={
         <PrivateRoute module="proposals"><ProposalsPage /></PrivateRoute>
@@ -94,7 +95,7 @@ export default function App() {
         <PrivateRoute module="reports"><ReportsPage /></PrivateRoute>
       } />
       <Route path="/settings" element={
-        <PrivateRoute module="dashboard"><SettingsPage /></PrivateRoute>
+        <PrivateRoute module="profile"><SettingsPage /></PrivateRoute>
       } />
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -4,6 +4,7 @@ const fs = require('fs');
 require('./utils/loadEnv')();
 const seedSupabase = require('./database/seedSupabase');
 const { uploadsPath, backupsPath } = require('./utils/runtimePaths');
+const { authenticateToken, requireModule } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,16 +41,17 @@ seedSupabase().catch((err) => {
 
 // Routes
 app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/dashboard', require('./routes/dashboard.routes'));
-app.use('/api/leads', require('./routes/leads.routes'));
-app.use('/api/followups', require('./routes/followups.routes'));
-app.use('/api/communications', require('./routes/communications.routes'));
-app.use('/api/tasks', require('./routes/tasks.routes'));
-app.use('/api/proposals', require('./routes/proposals.routes'));
-app.use('/api/clients', require('./routes/clients.routes'));
+app.use('/api/dashboard', authenticateToken, requireModule('dashboard'), require('./routes/dashboard.routes'));
+app.use('/api/leads', authenticateToken, requireModule('leads'), require('./routes/leads.routes'));
+app.use('/api/followups', authenticateToken, requireModule('followups'), require('./routes/followups.routes'));
+app.use('/api/communications', authenticateToken, requireModule('communications'), require('./routes/communications.routes'));
+app.use('/api/tasks', authenticateToken, requireModule('tasks'), require('./routes/tasks.routes'));
+app.use('/api/proposals', authenticateToken, requireModule('proposals'), require('./routes/proposals.routes'));
+app.use('/api/clients', authenticateToken, requireModule('clients'), require('./routes/clients.routes'));
 app.use('/api/employees', require('./routes/employees.routes'));
-app.use('/api/reports', require('./routes/reports.routes'));
+app.use('/api/reports', authenticateToken, requireModule('reports'), require('./routes/reports.routes'));
 app.use('/api/users', require('./routes/users.routes'));
+app.use('/api/notifications', require('./routes/notifications.routes'));
 
 // Error handler
 app.use((err, req, res, next) => {

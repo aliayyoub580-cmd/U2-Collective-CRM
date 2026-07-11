@@ -6,6 +6,7 @@ const { logActivity } = require('../utils/activity');
 const asyncHandler = require('../utils/asyncHandler');
 const { mapById, pageOptions } = require('../utils/supabaseRelations');
 const { isFollowUpStatus, normalizeValue, leadDisplayName } = require('../utils/leadWorkflow');
+const { notifyUsers, usersByRole } = require('../utils/notifications');
 
 router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const { date, assigned_to, status, page = 1, limit = 20, today, overdue } = req.query;
@@ -13,7 +14,7 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const todayDate = new Date().toISOString().split('T')[0];
   const filters = [];
 
-  if (req.user.role === 'Sales Representative' || req.user.role === 'Employee') filters.push(['assigned_to', 'eq', req.user.id]);
+  if (req.user.employee_type === 'caller') filters.push(['assigned_to', 'eq', req.user.id]);
   if (today === 'true') filters.push(['followup_date', 'eq', todayDate]);
   if (overdue === 'true') {
     filters.push(['followup_date', 'lt', todayDate]);
@@ -150,6 +151,36 @@ router.patch('/:id/complete', authenticateToken, asyncHandler(async (req, res) =
   await sb.update('followups', [['id', 'eq', req.params.id]], { status: 'Completed' });
   await logActivity(req.user.id, 'Completed follow-up', 'followups', req.params.id);
   res.json({ message: 'Follow-up marked as completed' });
+}));
+
+router.patch('/:id/resolve', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.employee_type !== 'caller') return res.status(403).json({ error: 'Only Callers can resolve reminders' });
+  const followup = await sb.one('followups', { filters: [['id', 'eq', req.params.id], ['assigned_to', 'eq', req.user.id]] });
+  if (!followup) return res.status(404).json({ error: 'Reminder not found' });
+  const interestStatus = req.body.interest_status;
+  if (!['Interested', 'Not Interested'].includes(interestStatus)) return res.status(400).json({ error: 'Select an interest status' });
+  if (interestStatus === 'Interested' && !['Outsource', 'In-House Billing', 'Freelancer'].includes(req.body.contract_type)) return res.status(400).json({ error: 'Select a contract type' });
+  if (interestStatus === 'Not Interested' && !req.body.not_interested_reason?.trim()) return res.status(400).json({ error: 'A reason is required' });
+  await sb.update('followups', [['id', 'eq', followup.id]], {
+    interest_status: interestStatus,
+    contract_type: interestStatus === 'Interested' ? req.body.contract_type : null,
+    not_interested_reason: interestStatus === 'Not Interested' ? req.body.not_interested_reason.trim() : null,
+    status: 'Completed',
+    resolved_at: new Date().toISOString()
+  });
+  const lead = await sb.one('leads', { filters: [['id', 'eq', followup.lead_id]] });
+  if (interestStatus === 'Interested') {
+    await sb.update('leads', [['id', 'eq', lead.id]], { status: 'Interested' });
+    const admins = await usersByRole('CEO');
+    await notifyUsers(admins, { lead_id: lead.id, type: 'interested_lead', title: 'New Interested Lead', message: `${lead.lead_id} - ${leadDisplayName(lead)}` });
+  } else {
+    const managers = await usersByRole('Manager');
+    const manager = managers[0];
+    await sb.update('leads', [['id', 'eq', lead.id]], { status: 'Not Interested', assigned_to: manager?.id || null });
+    await notifyUsers(managers, { lead_id: lead.id, type: 'manager_review', title: 'Lead Needs Manager Review', message: `${lead.lead_id} - ${leadDisplayName(lead)}` });
+  }
+  await logActivity(req.user.id, `${interestStatus}: ${lead.lead_id}`, 'leads', lead.id);
+  res.json({ message: `Lead marked ${interestStatus}` });
 }));
 
 module.exports = router;

@@ -115,6 +115,7 @@ export default function SettingsPage() {
               <p style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>{user?.name}</p>
               <p style={{ fontSize: '13px', color: '#64748B' }}>{user?.email}</p>
               <span style={{ fontSize: '11px', fontWeight: '600', background: '#DBEAFE', color: '#1D4ED8', padding: '2px 8px', borderRadius: '999px' }}>{user?.role}</span>
+              {user?.employee_type && <span style={{ marginLeft: '6px', fontSize: '11px', fontWeight: '700', background: '#EDE9FE', color: '#6D28D9', padding: '2px 8px', borderRadius: '999px' }}>{user.employee_type === 'lead_generator' ? 'Lead Generator' : 'Caller'}</span>}
             </div>
           </div>
 
@@ -151,7 +152,7 @@ export default function SettingsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
-                  {['User', 'Role', 'Status', 'Created', 'Actions'].map(h => (
+                  {['User', 'Role', 'Employee Type', 'Status', 'Created', 'Actions'].map(h => (
                     <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
@@ -171,6 +172,7 @@ export default function SettingsPage() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px', fontSize: '13px', color: '#475569' }}>{u.role}</td>
+                    <td style={{ padding: '14px 16px' }}><span style={{ fontSize: '11px', fontWeight: '700', background: u.employee_type ? '#EDE9FE' : '#F1F5F9', color: u.employee_type ? '#6D28D9' : '#64748B', padding: '4px 9px', borderRadius: '999px' }}>{u.employee_type === 'lead_generator' ? 'Lead Generator' : u.employee_type === 'caller' ? 'Caller' : 'Not Assigned'}</span></td>
                     <td style={{ padding: '14px 16px' }}><StatusBadge status={u.status === 'active' ? 'Active' : 'Inactive'} /></td>
                     <td style={{ padding: '14px 16px', fontSize: '12px', color: '#94A3B8' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td style={{ padding: '14px 16px' }}>

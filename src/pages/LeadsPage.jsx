@@ -1,331 +1,66 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Edit, Eye, Plus, RefreshCw, Search, Trash2, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Users, Edit, Trash2, Eye, RefreshCw } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import PageHeader from '../components/PageHeader';
-import StatusBadge from '../components/StatusBadge';
 import DataTable from '../components/DataTable';
+import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
-import EmptyState from '../components/EmptyState';
+import StatusBadge from '../components/StatusBadge';
 import { FormInput, FormSelect, FormTextarea, PrimaryButton, SecondaryButton } from '../components/FormFields';
 
-const SERVICES = ['Medical Billing', 'Digital Marketing', 'Web Development', 'Virtual Assistant', 'Prior Authorization', 'Credentialing', 'Revenue Cycle Management', 'SEO', 'Social Media Management'];
-const SOURCES = ['LinkedIn', 'Meta Ads', 'Referral', 'Website', 'Upwork', 'Fiverr', 'Cold Email', 'Other'];
-const STATUSES = ['Not contract', 'Contracted', 'Follow up', 'Meeting scheduled', 'Not interested'];
-const NON_MEDICAL_BILLING_STATUSES = ['Follow up', 'Meeting scheduled', 'Not interested'];
-const COMM_TYPES = ['LinkedIn Message', 'Email', 'Phone Call', 'WhatsApp', 'Zoom Meeting', 'Google Meet', 'Proposal Sent', 'Client Feedback', 'Internal Note'];
-const PRACTICE_SIZES = ['Solo practice', 'Small 2 - 5 providers', 'Medium 6 - 15 providers', 'Larger 15+ provider'];
-const COUNTRIES = ['United States', 'Canada', 'United Kingdom', 'Australia', 'Pakistan', 'India', 'United Arab Emirates', 'Saudi Arabia', 'Other'];
-
-const initialForm = {
-  company_name: '', clinic_website: '', clinic_linkedin: '',
-  clinic_phone: '', clinic_email: '',
-  country: '', state: '', city: '', source: '', service_interested: '', practice_size: '',
-  status: 'Not contract', assigned_to: '', communication_type: '', notes: ''
-};
+const SOURCES = ['Google', 'Reddit', 'LinkedIn', 'Facebook', 'Indeed', 'Glassdoor', 'Instagram', 'Other'];
+const STATES = ['California', 'Florida', 'Hawaii', 'Illinois', 'Maryland', 'Massachusetts', 'New Hampshire', 'New York', 'Ohio', 'Texas'];
+const SIZES = ['Solo Practice (1 Provider)', 'Small Clinic (2–5 Providers)', 'Medium Clinic (6–15 Providers)', 'Large Clinic (16+ Providers)'];
+const STATUSES = ['New', 'Assigned', 'Called', 'No Answer', 'Interested', 'Not Interested'];
+const emptyForm = { company_name: '', clinic_email: '', clinic_specialty: '', clinic_phone: '', state: '', city: '', source: '', source_other: '', practice_size: '', assigned_to: '', notes: '' };
 
 export default function LeadsPage() {
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
-  const [leads, setLeads] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterSource, setFilterSource] = useState('');
-  const [filterAssignedTo, setFilterAssignedTo] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [editLead, setEditLead] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
-  const [form, setForm] = useState(initialForm);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
+  const { user, hasRole } = useAuth();
+  const canCreate = hasRole('CEO') || user?.employee_type === 'lead_generator';
+  const [leads, setLeads] = useState([]); const [users, setUsers] = useState([]); const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true); const [page, setPage] = useState(1); const [search, setSearch] = useState('');
+  const [status, setStatus] = useState(''); const [source, setSource] = useState(''); const [state, setState] = useState('');
+  const [show, setShow] = useState(false); const [editing, setEditing] = useState(null); const [deleting, setDeleting] = useState(null);
+  const [form, setForm] = useState(emptyForm); const [errors, setErrors] = useState({}); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState('');
 
-  const fetchLeads = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async () => { setLoading(true); try { const res = await api.get('/leads', { params: { page, limit: 15, search, status, source, state } }); setLeads(res.data.leads || []); setTotal(res.data.total || 0); } catch (e) { setNotice(e.response?.data?.error || 'Unable to load leads.'); } finally { setLoading(false); } }, [page, search, status, source, state]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (hasRole('CEO')) api.get('/employees/users/all').then((res) => setUsers(res.data.users || [])).catch(() => {}); }, [hasRole]);
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setErrors({}); setShow(true); };
+  const openEdit = (lead) => { setEditing(lead); setForm({ ...emptyForm, company_name: lead.client_clinic_name || lead.company_name || '', clinic_email: lead.clinic_email || '', clinic_specialty: lead.clinic_specialty || '', clinic_phone: lead.clinic_phone || '', state: lead.state || '', city: lead.city || '', source: lead.source || '', source_other: lead.source_other || '', practice_size: lead.practice_size || '', assigned_to: lead.assigned_to || '', notes: lead.notes || '' }); setShow(true); };
+  const save = async (event) => {
+    event.preventDefault();
+    const next = {};
+    ['company_name','clinic_email','clinic_specialty','clinic_phone','state','city','source','practice_size'].forEach((key) => { if (!String(form[key] || '').trim()) next[key] = 'Required'; });
+    if (form.source === 'Other' && !form.source_other.trim()) next.source_other = 'Specify the source';
+    setErrors(next); if (Object.keys(next).length) return; setSaving(true);
     try {
-      const params = { page, limit: 15, search, status: filterStatus, source: filterSource, assigned_to: filterAssignedTo };
-      const res = await api.get('/leads', { params });
-      setLeads(res.data.leads);
-      setTotal(res.data.total);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, filterStatus, filterSource, filterAssignedTo]);
-
-  useEffect(() => { fetchLeads(); }, [fetchLeads]);
-
-  useEffect(() => {
-    api.get('/employees/users/all').then(res => setUsers(res.data.users || [])).catch(() => {});
-  }, []);
-
-  const openCreate = () => { setForm(initialForm); setEditLead(null); setErrors({}); setShowModal(true); };
-  const openEdit = (lead) => {
-    setForm({
-      company_name: lead.client_clinic_name || lead.company_name || '',
-      clinic_website: lead.clinic_website || '',
-      clinic_linkedin: lead.clinic_linkedin || '',
-      clinic_phone: lead.clinic_phone || '',
-      clinic_email: lead.clinic_email || '',
-      country: lead.country || '', state: lead.state || '', city: lead.city || '', source: lead.source || '',
-      service_interested: lead.service_interested || '',
-      practice_size: lead.practice_size || '',
-      status: lead.status || 'Not contract',
-      assigned_to: lead.assigned_to || '', communication_type: '', notes: lead.notes || ''
-    });
-    setEditLead(lead);
-    setErrors({});
-    setShowModal(true);
+      const response = editing ? await api.put(`/leads/${editing.id}`, form) : await api.post('/leads', form);
+      const leadId = editing?.id || response.data.lead.id;
+      if (hasRole('CEO') && form.assigned_to && String(form.assigned_to) !== String(editing?.assigned_to || '')) await api.patch(`/leads/${leadId}/assign`, { assigned_to: form.assigned_to });
+      setShow(false); setNotice(editing ? 'Lead updated.' : 'Lead created successfully.'); load();
+    } catch (e) { setErrors({ general: e.response?.data?.error || 'Unable to save lead.' }); }
+    finally { setSaving(false); }
   };
-
-  const validate = () => {
-    const e = {};
-    if (!form.company_name.trim()) e.company_name = 'Client clinic name is required';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setSaving(true);
-    try {
-      if (editLead) {
-        await api.put(`/leads/${editLead.id}`, form);
-      } else {
-        await api.post('/leads', form);
-      }
-      setShowModal(false);
-      fetchLeads();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await api.delete(`/leads/${deleteId}`);
-      fetchLeads();
-    } catch (err) {
-      console.error(err);
-    }
-    setDeleteId(null);
-  };
+  const remove = async () => { try { await api.delete(`/leads/${deleting}`); setNotice('Lead deleted.'); load(); } catch (e) { setNotice(e.response?.data?.error || 'Unable to delete lead.'); } setDeleting(null); };
 
   const columns = [
-    {
-      header: 'Client Clinic Name', key: 'company_name',
-      render: (row) => (
-        <div>
-          <p style={{ fontWeight: '600', color: '#0F172A', fontSize: '14px' }}>{row.client_clinic_name || row.company_name}</p>
-          <p style={{ fontSize: '12px', color: '#64748B' }}>{row.clinic_email || row.clinic_phone || row.clinic_website}</p>
-        </div>
-      )
-    },
-    { header: 'Lead ID', key: 'lead_id', render: (row) => (
-      <span style={{ fontSize: '13px', color: '#475569' }}>{row.lead_id || `#${row.id}`}</span>
-    )},
-    { header: 'Service', key: 'service_interested', render: (row) => (
-      <span style={{ fontSize: '13px', color: '#475569' }}>{row.service_interested || '—'}</span>
-    )},
-    { header: 'Source', key: 'source', render: (row) => (
-      <span style={{ fontSize: '13px', color: '#475569' }}>{row.source || '—'}</span>
-    )},
-    { header: 'Status', key: 'status', render: (row) => <StatusBadge status={row.status} /> },
-    { header: 'Assigned To', key: 'assigned_to_name', render: (row) => (
-      <span style={{ fontSize: '13px', color: '#475569' }}>{row.assigned_to_name || '—'}</span>
-    )},
-    {
-      header: 'Actions', key: 'actions', align: 'right',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-          <button onClick={(e) => { e.stopPropagation(); navigate(`/leads/${row.id}`); }}
-            className="p-2 rounded-lg hover:bg-[#DBEAFE] text-[#2563EB] transition-colors" title="View">
-            <Eye size={15} />
-          </button>
-          {hasRole('CEO', 'Manager', 'Sales Representative') && (
-            <button onClick={(e) => { e.stopPropagation(); openEdit(row); }}
-              className="p-2 rounded-lg hover:bg-[#F1F5F9] text-[#475569] transition-colors" title="Edit">
-              <Edit size={15} />
-            </button>
-          )}
-          {hasRole('CEO', 'Manager') && (
-            <button onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }}
-              className="p-2 rounded-lg hover:bg-[#FEE2E2] text-[#DC2626] transition-colors" title="Delete">
-              <Trash2 size={15} />
-            </button>
-          )}
-        </div>
-      )
-    }
+    { header: 'Lead ID', key: 'lead_id' },
+    { header: 'Clinic', render: (r) => <div><strong>{r.client_clinic_name || r.company_name}</strong><p style={{ fontSize: 12, color: '#64748B' }}>{r.clinic_email}</p></div> },
+    { header: 'Specialty', key: 'clinic_specialty' }, { header: 'Phone', key: 'clinic_phone' }, { header: 'State', key: 'state' }, { header: 'City', key: 'city' },
+    { header: 'Source', render: (r) => r.source === 'Other' ? r.source_other : r.source }, { header: 'Clinic Size', key: 'practice_size' }, { header: 'Created By', key: 'created_by_name' },
+    { header: 'Created', render: (r) => new Date(r.created_at).toLocaleDateString() }, { header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+    { header: 'Actions', align: 'right', render: (r) => <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}><button onClick={() => navigate(`/leads/${r.id}`)} className="p-2 rounded-lg text-blue-600"><Eye size={15}/></button>{canCreate && <button onClick={() => openEdit(r)} className="p-2 rounded-lg text-slate-600"><Edit size={15}/></button>}{hasRole('CEO') && <button onClick={() => setDeleting(r.id)} className="p-2 rounded-lg text-red-600"><Trash2 size={15}/></button>}</div> }
   ];
-
-  const isMedicalBilling = form.service_interested === 'Medical Billing';
-  const isNonMedicalBillingService = form.service_interested && !isMedicalBilling;
-  const statusOptions = isNonMedicalBillingService ? NON_MEDICAL_BILLING_STATUSES : STATUSES;
-  const handleServiceChange = (service) => {
-    const nextStatusOptions = service && service !== 'Medical Billing' ? NON_MEDICAL_BILLING_STATUSES : STATUSES;
-    setForm({
-      ...form,
-      service_interested: service,
-      practice_size: service === 'Medical Billing' ? form.practice_size : '',
-      status: nextStatusOptions.includes(form.status) ? form.status : nextStatusOptions[0]
-    });
-  };
-
-  return (
-    <div>
-      <PageHeader
-        title="Lead Management"
-        subtitle={`${total} total leads`}
-        actions={
-          <>
-            <button onClick={fetchLeads} className="p-2 rounded-xl hover:bg-[#F1F5F9] text-[#475569] transition-colors">
-              <RefreshCw size={16} />
-            </button>
-            {hasRole('CEO', 'Manager', 'Sales Representative') && (
-              <PrimaryButton onClick={openCreate} icon={Plus}>Add Lead</PrimaryButton>
-            )}
-          </>
-        }
-      />
-
-      {/* Filters */}
-      <div style={{
-        background: '#FFFFFF', border: '1px solid #E2E8F0',
-        borderRadius: '18px', padding: '16px 20px',
-        marginBottom: '20px',
-        display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap'
-      }}>
-        <div className="relative flex-1" style={{ minWidth: '200px' }}>
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-          <input
-            type="text"
-            placeholder="Search leads..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            style={{
-              width: '100%', height: '40px', border: '1px solid #E2E8F0',
-              borderRadius: '10px', paddingLeft: '36px', paddingRight: '14px',
-              fontSize: '13px', outline: 'none', background: '#F8FAFC'
-            }}
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-          style={{ height: '40px', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0 12px', fontSize: '13px', background: '#F8FAFC', outline: 'none', minWidth: '140px' }}
-        >
-          <option value="">All Statuses</option>
-          {STATUSES.map(s => <option key={s}>{s}</option>)}
-        </select>
-        <select
-          value={filterSource}
-          onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}
-          style={{ height: '40px', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0 12px', fontSize: '13px', background: '#F8FAFC', outline: 'none', minWidth: '140px' }}
-        >
-          <option value="">All Sources</option>
-          {SOURCES.map(s => <option key={s}>{s}</option>)}
-        </select>
-        <select
-          value={filterAssignedTo}
-          onChange={(e) => { setFilterAssignedTo(e.target.value); setPage(1); }}
-          style={{ height: '40px', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0 12px', fontSize: '13px', background: '#F8FAFC', outline: 'none', minWidth: '150px' }}
-        >
-          <option value="">All Assigned</option>
-          {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </select>
-      </div>
-
-      {/* Table */}
-      <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '18px', overflow: 'hidden' }}>
-        <DataTable
-          columns={columns}
-          data={leads}
-          loading={loading}
-          onRowClick={(row) => navigate(`/leads/${row.id}`)}
-          emptyState={
-            <EmptyState
-              icon={Users}
-              title="No leads found"
-              description="Start by adding your first lead for U2 Collective LLP."
-              action={hasRole('CEO', 'Manager', 'Sales Representative') && (
-                <PrimaryButton onClick={openCreate} icon={Plus}>Add Lead</PrimaryButton>
-              )}
-            />
-          }
-          pagination={{ page, limit: 15, total }}
-          onPageChange={(p) => setPage(p)}
-        />
-      </div>
-
-      {/* Create/Edit Modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editLead ? 'Edit Lead' : 'Add New Lead'} size="lg">
-        <form onSubmit={handleSave}>
-          <div className="lead-form-grid">
-            <FormInput label="Client Clinic Name" required value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} error={errors.company_name} placeholder="Enter clinic name" />
-            <FormInput label="Clinic Website" type="url" value={form.clinic_website} onChange={(e) => setForm({ ...form, clinic_website: e.target.value })} placeholder="https://clinic.com" />
-            <FormInput label="Clinic LinkedIn" value={form.clinic_linkedin} onChange={(e) => setForm({ ...form, clinic_linkedin: e.target.value })} placeholder="Clinic LinkedIn URL" />
-            <FormInput label="Clinic Phone" type="tel" value={form.clinic_phone} onChange={(e) => setForm({ ...form, clinic_phone: e.target.value })} placeholder="+1 555 000 0000" />
-            <FormInput label="Clinic Email" type="email" value={form.clinic_email} onChange={(e) => setForm({ ...form, clinic_email: e.target.value })} placeholder="clinic@example.com" />
-            <FormSelect label="Country" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
-              <option value="">Select country</option>
-              {COUNTRIES.map(c => <option key={c}>{c}</option>)}
-            </FormSelect>
-            <FormInput label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="State (optional)" />
-            <FormInput label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="City (optional)" />
-            <FormSelect label="Lead Source" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-              <option value="">Select source</option>
-              {SOURCES.map(s => <option key={s}>{s}</option>)}
-            </FormSelect>
-            <FormSelect label="Service" value={form.service_interested} onChange={(e) => handleServiceChange(e.target.value)}>
-              <option value="">Select service</option>
-              {SERVICES.map(s => <option key={s}>{s}</option>)}
-            </FormSelect>
-            {isMedicalBilling && (
-              <FormSelect label="Practice Size" value={form.practice_size} onChange={(e) => setForm({ ...form, practice_size: e.target.value })}>
-                <option value="">Select practice size</option>
-                {PRACTICE_SIZES.map(s => <option key={s}>{s}</option>)}
-              </FormSelect>
-            )}
-            <FormSelect label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              {statusOptions.map(s => <option key={s}>{s}</option>)}
-            </FormSelect>
-            <FormSelect label="Assign To" value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}>
-              <option value="">Unassigned</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
-            </FormSelect>
-            <FormSelect label="Communication Type" value={form.communication_type} onChange={(e) => setForm({ ...form, communication_type: e.target.value })}>
-              <option value="">Select type</option>
-              {COMM_TYPES.map(t => <option key={t}>{t}</option>)}
-            </FormSelect>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <FormTextarea label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Additional notes..." rows={3} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
-            <SecondaryButton onClick={() => setShowModal(false)}>Cancel</SecondaryButton>
-            <PrimaryButton type="submit" loading={saving}>{editLead ? 'Update Lead' : 'Create Lead'}</PrimaryButton>
-          </div>
-        </form>
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={handleDelete}
-        title="Delete Lead"
-        message="Are you sure you want to delete this lead? This will also remove all associated follow-ups, communications, and proposals."
-        confirmLabel="Delete Lead"
-      />
-    </div>
-  );
+  return <div><PageHeader title={user?.role === 'Manager' ? 'Manager Review Queue' : 'Healthcare Leads'} subtitle={`${total} leads`} actions={<><button onClick={load} className="p-2 rounded-xl text-slate-600"><RefreshCw size={16}/></button>{canCreate && <PrimaryButton onClick={openCreate} icon={Plus}>Add Lead</PrimaryButton>}</>} />
+    {notice && <div style={{ padding: 12, background: '#EFF6FF', color: '#1D4ED8', borderRadius: 12, marginBottom: 16 }}>{notice}</div>}
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: 16, background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 16, marginBottom: 18 }}><div className="relative" style={{ flex: 1, minWidth: 220 }}><Search size={15} className="absolute left-3 top-3 text-slate-400"/><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search ID, clinic, email, phone, state or source" style={{ width: '100%', height: 40, paddingLeft: 36, border: '1px solid #E2E8F0', borderRadius: 10 }}/></div><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option>{STATUSES.map(x => <option key={x}>{x}</option>)}</select><select value={state} onChange={(e) => setState(e.target.value)}><option value="">All states</option>{STATES.map(x => <option key={x}>{x}</option>)}</select><select value={source} onChange={(e) => setSource(e.target.value)}><option value="">All sources</option>{SOURCES.map(x => <option key={x}>{x}</option>)}</select></div>
+    <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 18, overflow: 'hidden' }}><DataTable columns={columns} data={leads} loading={loading} pagination={{ page, limit: 15, total }} onPageChange={setPage} emptyState={<EmptyState icon={Users} title="No leads found" description="No healthcare leads match these filters." action={canCreate && <PrimaryButton onClick={openCreate} icon={Plus}>Add Lead</PrimaryButton>}/>} /></div>
+    <Modal isOpen={show} onClose={() => setShow(false)} title={editing ? 'Edit Healthcare Lead' : 'Create Healthcare Lead'} size="lg"><form onSubmit={save}>{errors.general && <p style={{ color: '#DC2626', marginBottom: 12 }}>{errors.general}</p>}<div className="lead-form-grid"><FormInput label="Clinic Name" required value={form.company_name} error={errors.company_name} onChange={(e) => setForm({...form,company_name:e.target.value})}/><FormInput label="Clinic Email" type="email" required value={form.clinic_email} error={errors.clinic_email} onChange={(e) => setForm({...form,clinic_email:e.target.value})}/><FormInput label="Clinic Specialty" required value={form.clinic_specialty} error={errors.clinic_specialty} onChange={(e) => setForm({...form,clinic_specialty:e.target.value})}/><FormInput label="Clinic Phone Number" required value={form.clinic_phone} error={errors.clinic_phone} onChange={(e) => setForm({...form,clinic_phone:e.target.value})}/><FormSelect label="State" required value={form.state} error={errors.state} onChange={(e) => setForm({...form,state:e.target.value})}><option value="">Select state</option>{STATES.map(x=><option key={x}>{x}</option>)}</FormSelect><FormInput label="City" required value={form.city} error={errors.city} onChange={(e) => setForm({...form,city:e.target.value})}/><FormSelect label="Lead Source" required value={form.source} error={errors.source} onChange={(e) => setForm({...form,source:e.target.value})}><option value="">Select source</option>{SOURCES.map(x=><option key={x}>{x}</option>)}</FormSelect>{form.source==='Other'&&<FormInput label="Specify Lead Source" required value={form.source_other} error={errors.source_other} onChange={(e)=>setForm({...form,source_other:e.target.value})}/>}<FormSelect label="Clinic Practice" required value={form.practice_size} error={errors.practice_size} onChange={(e)=>setForm({...form,practice_size:e.target.value})}><option value="">Select clinic size</option>{SIZES.map(x=><option key={x}>{x}</option>)}</FormSelect>{hasRole('CEO')&&<FormSelect label="Assign Caller" value={form.assigned_to} onChange={(e)=>setForm({...form,assigned_to:e.target.value})}><option value="">Unassigned</option>{users.filter(x=>x.employee_type==='caller').map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</FormSelect>}<div style={{gridColumn:'1 / -1'}}><FormTextarea label="Notes" rows={5} value={form.notes} onChange={(e)=>setForm({...form,notes:e.target.value})}/></div></div><div style={{display:'flex',justifyContent:'flex-end',gap:12,marginTop:20}}><SecondaryButton onClick={()=>setShow(false)}>Cancel</SecondaryButton><PrimaryButton type="submit" loading={saving}>{editing?'Update Lead':'Create Lead'}</PrimaryButton></div></form></Modal>
+    <ConfirmDialog isOpen={!!deleting} onClose={()=>setDeleting(null)} onConfirm={remove} title="Delete Lead" message="Delete this lead and its linked workflow records?" confirmLabel="Delete"/>
+  </div>;
 }

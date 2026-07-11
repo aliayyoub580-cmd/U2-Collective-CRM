@@ -39,7 +39,13 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
   const proposals = proposalsRes.data || [];
   const payments = paymentsRes.data || [];
 
-  if (user.role === 'Sales Representative') {
+  if (user.employee_type === 'lead_generator') {
+    leads = leads.filter((lead) => Number(lead.created_by) === Number(user.id));
+  } else if (user.employee_type === 'caller') {
+    leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
+    tasks = tasks.filter((task) => Number(task.assigned_to) === Number(user.id));
+    followups = followups.filter((followup) => Number(followup.assigned_to) === Number(user.id));
+  } else if (user.role === 'Sales Representative') {
     leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
     tasks = tasks.filter((task) => Number(task.assigned_to) === Number(user.id));
     followups = followups.filter((followup) => Number(followup.assigned_to) === Number(user.id));
@@ -60,6 +66,13 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
   });
 
   res.json({
+    dashboardType: user.employee_type || user.role,
+    todaysLeads: leads.filter((lead) => String(lead.created_at || '').slice(0, 10) === today).length,
+    totalLeadGenerated: leads.length,
+    assignedLeads: leads.length,
+    pendingLeads: leads.filter((lead) => ['Assigned', 'New', 'No Answer'].includes(lead.status)).length,
+    todaysFollowUps: followups.filter((followup) => followup.followup_date === today).length,
+    todaysReminder: followups.filter((followup) => followup.followup_date === today && followup.status === 'Pending').length,
     totalLeads: leads.length,
     totalClients: clients.filter((client) => client.status === 'Active').length,
     tasksDueToday: tasks.filter((task) => task.deadline === today && task.status !== 'Completed').length,

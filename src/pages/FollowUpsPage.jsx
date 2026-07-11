@@ -8,6 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import { FormInput, FormSelect, FormTextarea, PrimaryButton, SecondaryButton } from '../components/FormFields';
 import DataTable from '../components/DataTable';
+import { useAuth } from '../context/AuthContext';
 
 const METHODS = ['Phone Call', 'Email', 'LinkedIn', 'WhatsApp', 'Zoom Meeting', 'Google Meet', 'Other'];
 
@@ -17,6 +18,7 @@ const initialForm = {
 };
 
 export default function FollowUpsPage() {
+  const { user } = useAuth();
   const [followups, setFollowups] = useState([]);
   const [leads, setLeads] = useState([]);
   const [users, setUsers] = useState([]);
@@ -71,6 +73,7 @@ export default function FollowUpsPage() {
       followup_date: item.followup_date || '', followup_time: item.followup_time || '',
       method: item.method || '', notes: item.notes || '',
       assigned_to: item.assigned_to || '', status: item.status || 'Pending'
+      , interest_status: '', contract_type: '', not_interested_reason: ''
     });
     setEditItem(item);
     setShowModal(true);
@@ -82,7 +85,8 @@ export default function FollowUpsPage() {
     setSaving(true);
     try {
       if (editItem) {
-        await api.put(`/followups/${editItem.id}`, form);
+        if (user?.employee_type === 'caller' && form.interest_status) await api.patch(`/followups/${editItem.id}/resolve`, form);
+        else await api.put(`/followups/${editItem.id}`, form);
       } else {
         await api.post('/followups', form);
       }
@@ -252,6 +256,11 @@ export default function FollowUpsPage() {
                 <option>Completed</option>
               </FormSelect>
             )}
+            {editItem && user?.employee_type === 'caller' && editItem.status === 'Pending' && <>
+              <FormSelect label="Interest Status" value={form.interest_status || ''} onChange={(e) => setForm({ ...form, interest_status: e.target.value })}><option value="">Select interest</option><option>Interested</option><option>Not Interested</option></FormSelect>
+              {form.interest_status === 'Interested' && <FormSelect label="Contract Type" value={form.contract_type || ''} onChange={(e) => setForm({ ...form, contract_type: e.target.value })}><option value="">Select contract type</option><option>Outsource</option><option>In-House Billing</option><option>Freelancer</option></FormSelect>}
+              {form.interest_status === 'Not Interested' && <FormTextarea label="Reason" required value={form.not_interested_reason || ''} onChange={(e) => setForm({ ...form, not_interested_reason: e.target.value })} rows={3} />}
+            </>}
             <FormTextarea label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
           </div>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Search, Bell, ChevronDown, LogOut, Settings, Menu } from 'lucide-react';
+import api from '../api/axios';
 
 const pageTitles = {
   '/dashboard': 'Dashboard',
@@ -17,10 +18,12 @@ const pageTitles = {
 };
 
 export default function Header({ onToggleSidebar }) {
-  const { user, logout } = useAuth();
+  const { user, logout, employeeTypeLabel } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const dropdownRef = useRef(null);
 
   const pageTitle = Object.entries(pageTitles).find(([path]) =>
@@ -36,6 +39,17 @@ export default function Header({ onToggleSidebar }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const load = () => api.get('/notifications').then((res) => setNotifications(res.data.notifications || [])).catch(() => {});
+    load(); const timer = setInterval(load, 60000); return () => clearInterval(timer);
+  }, []);
+
+  const openNotification = async (item) => {
+    if (!item.is_read) { await api.patch(`/notifications/${item.id}/read`); setNotifications((current) => current.map((n) => n.id === item.id ? { ...n, is_read: true } : n)); }
+    if (item.lead_id) navigate(`/leads/${item.lead_id}`);
+    setShowNotifications(false);
+  };
 
   const handleLogout = () => {
     logout();
@@ -101,9 +115,10 @@ export default function Header({ onToggleSidebar }) {
       </span>
 
       {/* Notification bell */}
-      <button className="relative p-2 rounded-xl hover:bg-[#F8FAFC] transition-colors text-[#64748B] hover:text-[#0F172A]">
+      <div className="relative"><button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 rounded-xl hover:bg-[#F8FAFC] transition-colors text-[#64748B] hover:text-[#0F172A]">
         <Bell size={20} />
-      </button>
+        {notifications.some((n) => !n.is_read) && <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 99, background: '#DC2626', border: '2px solid #FFF' }} />}
+      </button>{showNotifications && <div style={{ position: 'absolute', right: 0, top: 46, width: 340, maxHeight: 380, overflowY: 'auto', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 14, boxShadow: '0 18px 48px rgba(15,23,42,.16)', zIndex: 60 }}><div style={{ padding: 14, fontWeight: 700, borderBottom: '1px solid #E2E8F0' }}>Notifications</div>{notifications.length ? notifications.map((item) => <button key={item.id} onClick={() => openNotification(item)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: 14, border: 0, borderBottom: '1px solid #F1F5F9', background: item.is_read ? '#FFF' : '#EFF6FF' }}><strong style={{ fontSize: 13 }}>{item.title}</strong><p style={{ fontSize: 12, color: '#64748B', marginTop: 3 }}>{item.message}</p></button>) : <p style={{ padding: 20, color: '#64748B', fontSize: 13 }}>No notifications</p>}</div>}</div>
 
       {/* User dropdown */}
       <div className="relative" ref={dropdownRef}>
@@ -118,6 +133,7 @@ export default function Header({ onToggleSidebar }) {
           <div className="text-left hidden sm:block">
             <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', lineHeight: 1.3 }}>{user?.name}</p>
             <p style={{ fontSize: '11px', color: '#64748B' }}>{user?.role}</p>
+            {employeeTypeLabel && <p style={{ fontSize: '10px', color: '#2563EB', fontWeight: 700 }}>{employeeTypeLabel}</p>}
           </div>
           <ChevronDown size={14} className="text-[#64748B]" />
         </button>

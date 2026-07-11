@@ -17,11 +17,11 @@ const navItems = [
   { path: '/clients', icon: Briefcase, label: 'Clients', module: 'clients' },
   { path: '/employees', icon: UserCog, label: 'Employees', module: 'employees' },
   { path: '/reports', icon: BarChart3, label: 'Reports', module: 'reports' },
-  { path: '/settings', icon: Settings, label: 'Settings', module: 'dashboard' },
+  { path: '/settings', icon: Settings, label: 'My Profile', module: 'profile' },
 ];
 
 export default function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate }) {
-  const { canAccess, user } = useAuth();
+  const { canAccess, user, employeeTypeLabel } = useAuth();
   const location = useLocation();
 
   const visibleItems = navItems.filter(item => canAccess(item.module));
@@ -115,6 +115,7 @@ export default function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate })
             <div className="overflow-hidden">
               <p className="text-white text-xs font-semibold truncate">{user?.name}</p>
               <p className="text-[#64748B] text-xs truncate">{user?.role}</p>
+              {employeeTypeLabel && <span style={{ display: 'inline-flex', marginTop: '3px', padding: '2px 7px', borderRadius: '999px', background: 'rgba(37,99,235,.28)', color: '#BFDBFE', fontSize: '10px', fontWeight: 700 }}>{employeeTypeLabel}</span>}
             </div>
           </div>
         </div>

@@ -8,10 +8,12 @@ import {
 import api from '../api/axios';
 import StatCard from '../components/StatCard';
 import DailyQuranAyatCard from '../components/DailyQuranAyatCard';
+import { useAuth } from '../context/AuthContext';
 
 const COLORS = ['#2563EB', '#7C3AED', '#16A34A', '#F59E0B', '#DC2626', '#0891B2', '#DB2777'];
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -43,6 +45,34 @@ export default function Dashboard() {
           <div className="w-10 h-10 rounded-full animate-spin mx-auto mb-3"
             style={{ borderWidth: '3px', borderStyle: 'solid', borderColor: '#E2E8F0', borderTopColor: '#2563EB' }} />
           <p style={{ fontSize: '14px', color: '#64748B' }}>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.employee_type === 'lead_generator') {
+    return (
+      <div>
+        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>Lead Generation Dashboard</h2>
+        <p style={{ color: '#64748B', marginBottom: '24px' }}>Track your healthcare lead generation performance.</p>
+        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+          <StatCard title="Today's Leads" value={stats?.todaysLeads || 0} icon={Users} iconClass="icon-blue" trendLabel="Leads created today" to="/leads" />
+          <StatCard title="Total Lead Generated" value={stats?.totalLeadGenerated || 0} icon={TrendingUp} iconClass="icon-green" trendLabel="Lifetime leads generated" to="/leads" />
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.employee_type === 'caller') {
+    return (
+      <div>
+        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>Caller Dashboard</h2>
+        <p style={{ color: '#64748B', marginBottom: '24px' }}>Your assigned clinic outreach and reminders.</p>
+        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+          <StatCard title="Assigned Leads" value={stats?.assignedLeads || 0} icon={Users} iconClass="icon-blue" trendLabel="Your active assignments" to="/tasks" />
+          <StatCard title="Pending Leads" value={stats?.pendingLeads || 0} icon={CheckSquare} iconClass="icon-orange" trendLabel="Awaiting contact" to="/tasks" />
+          <StatCard title="Today's Follow Ups" value={stats?.todaysFollowUps || 0} icon={Bell} iconClass="icon-cyan" trendLabel="Scheduled today" to="/follow-ups" />
+          <StatCard title="Today's Reminder" value={stats?.todaysReminder || 0} icon={Bell} iconClass="icon-red" trendLabel="Pending today only" to="/follow-ups" />
         </div>
       </div>
     );

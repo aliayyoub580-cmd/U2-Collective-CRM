@@ -4,12 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, Bell, MessageSquare,
   CheckSquare, FileText, Briefcase, UserCog, BarChart3,
-  Settings, ChevronLeft, ChevronRight
+  Settings, ChevronLeft, ChevronRight, Trophy
 } from 'lucide-react';
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', module: 'dashboard' },
   { path: '/leads', icon: Users, label: 'Leads', module: 'leads' },
+  { path: '/completed-leads', icon: Trophy, label: 'Completed Leads', module: 'completed_leads' },
   { path: '/follow-ups', icon: Bell, label: 'Follow-Ups', module: 'followups' },
   { path: '/communications', icon: MessageSquare, label: 'Communications', module: 'communications' },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks', module: 'tasks' },

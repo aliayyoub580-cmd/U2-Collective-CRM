@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Briefcase, Bell, FileText, DollarSign, CheckSquare, TrendingUp, Activity } from 'lucide-react';
+import { Users, Briefcase, Bell, FileText, DollarSign, CheckSquare, TrendingUp, Activity, UserCheck } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -25,6 +25,11 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
+      if (user?.role === 'Manager') {
+        const response = await api.get('/manager/dashboard');
+        setStats(response.data.data || {});
+        return;
+      }
       const [statsRes, activitiesRes] = await Promise.all([
         api.get('/dashboard/stats'),
         api.get('/dashboard/recent-activities')
@@ -71,8 +76,8 @@ export default function Dashboard() {
         <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
           <StatCard title="Assigned Leads" value={stats?.assignedLeads || 0} icon={Users} iconClass="icon-blue" trendLabel="Your active assignments" to="/tasks" />
           <StatCard title="Pending Leads" value={stats?.pendingLeads || 0} icon={CheckSquare} iconClass="icon-orange" trendLabel="Awaiting contact" to="/tasks" />
-          <StatCard title="Today's Follow Ups" value={stats?.todaysFollowUps || 0} icon={Bell} iconClass="icon-cyan" trendLabel="Scheduled today" to="/follow-ups" />
-          <StatCard title="Today's Reminder" value={stats?.todaysReminder || 0} icon={Bell} iconClass="icon-red" trendLabel="Pending today only" to="/follow-ups" />
+          <StatCard title="Total Follow Ups" value={stats?.totalFollowUps || 0} icon={Bell} iconClass="icon-cyan" trendLabel="All assigned follow-ups" to="/follow-ups" />
+          <StatCard title="Pending Follow Ups" value={stats?.pendingFollowUps || 0} icon={Bell} iconClass="icon-red" trendLabel="Awaiting follow-up" to="/follow-ups" />
         </div>
       </div>
     );
@@ -82,10 +87,13 @@ export default function Dashboard() {
     return (
       <div>
         <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>Manager Dashboard</h2>
-        <p style={{ color: '#64748B', marginBottom: '24px' }}>Review routed healthcare leads and sales opportunities.</p>
-        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
-          <StatCard title="Review Queue" value={stats?.assignedLeads || 0} icon={Users} iconClass="icon-blue" trendLabel="All submitted leads" to="/leads" />
-          <StatCard title="Interested Leads" value={stats?.interestedLeads || 0} icon={TrendingUp} iconClass="icon-green" trendLabel="Qualified opportunities" to="/leads" />
+        <p style={{ color: '#64748B', marginBottom: '24px' }}>Your private lead queue and distribution progress.</p>
+        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '20px' }}>
+          <StatCard title="Total Leads" value={stats?.totalLeads || 0} icon={Users} iconClass="icon-blue" trendLabel="Assigned to you" to="/leads" />
+          <StatCard title="Assigned" value={stats?.assigned || 0} icon={UserCheck} iconClass="icon-cyan" trendLabel="With your team" to="/leads" />
+          <StatCard title="Pending" value={stats?.pending || 0} icon={CheckSquare} iconClass="icon-orange" trendLabel="Awaiting completion" to="/leads" />
+          <StatCard title="Leads Completed by Caller" value={stats?.completedByCaller || 0} icon={Bell} iconClass="icon-purple" trendLabel="Ready for manager review" to="/leads" />
+          <StatCard title="Leads Completed by Manager" value={stats?.completedByManager || 0} icon={TrendingUp} iconClass="icon-green" trendLabel="Finalized by you" to="/leads" />
         </div>
       </div>
     );

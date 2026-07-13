@@ -51,7 +51,7 @@ function requireModule(module) {
       : user.employee_type === 'caller'
         ? ['dashboard', 'tasks', 'followups', 'profile']
         : null;
-    const roleAccess = { Manager: ['dashboard', 'leads', 'communications', 'reports'], 'Sales Representative': ['dashboard', 'leads', 'followups', 'communications', 'proposals'], Marketing: ['dashboard', 'leads', 'reports'], Accountant: ['dashboard', 'clients', 'reports'], Employee: ['dashboard', 'tasks'] };
+    const roleAccess = { Manager: ['dashboard', 'leads', 'followups', 'profile'], 'Sales Representative': ['dashboard', 'leads', 'followups', 'communications', 'proposals'], Marketing: ['dashboard', 'leads', 'reports'], Accountant: ['dashboard', 'clients', 'reports'], Employee: ['dashboard', 'tasks'] };
     const allowed = employeeAccess || roleAccess[user.role] || [];
     if (!allowed.includes(module)) return res.status(403).json({ error: 'Insufficient module permissions' });
     next();

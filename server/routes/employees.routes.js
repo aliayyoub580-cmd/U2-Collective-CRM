@@ -104,7 +104,9 @@ router.get('/users/all', authenticateToken, asyncHandler(async (req, res) => {
   const employeeType = normalizeEmployeeType(req.query.employee_type);
   if (employeeType) filters.push(['employee_type', 'eq', employeeType]);
   const { data: users } = await sb.list('users', { select: 'id,name,email,role,employee_type', filters, order: 'name.asc' });
-  res.json({ users: (users || []).map((user) => ({ ...user, role: normalizeRole(user.role) })).filter((user) => STAFF_ROLES.includes(user.role)) });
+  let safeUsers = (users || []).map((user) => ({ ...user, role: normalizeRole(user.role) })).filter((user) => STAFF_ROLES.includes(user.role));
+  if (req.user.role === 'Manager') safeUsers = safeUsers.filter((user) => user.role === 'Employee' && ['lead_generator', 'caller'].includes(user.employee_type));
+  res.json({ users: safeUsers });
 }));
 
 router.get('/:id/tasks', authenticateToken, requireRole('CEO', 'Manager'), asyncHandler(async (req, res) => {

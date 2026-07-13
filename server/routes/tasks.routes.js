@@ -17,6 +17,16 @@ async function activeLeadGenerator(userId) {
   });
 }
 
+router.get('/assigned-leads', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.employee_type !== 'caller') return res.status(403).json({ error: 'Only callers can view assigned leads' });
+  const { data } = await sb.list('leads', {
+    filters: [['assigned_to', 'eq', req.user.id]],
+    order: 'created_at.desc',
+    limit: 100
+  });
+  res.json({ leads: data || [] });
+}));
+
 router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const { status, priority, assigned_to, page = 1, limit = 20 } = req.query;
   const { offset, limit: limitNum } = pageOptions(page, limit);

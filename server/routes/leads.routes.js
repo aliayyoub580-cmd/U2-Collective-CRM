@@ -120,7 +120,7 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
   res.status(201).json({ lead });
 }));
 
-router.patch('/:id/assign', authenticateToken, requireRole('CEO'), asyncHandler(async (req, res) => {
+router.patch('/:id/assign', authenticateToken, requireRole('CEO', 'Manager'), asyncHandler(async (req, res) => {
   const caller = await sb.one('users', { select: 'id,name,employee_type,status', filters: [['id', 'eq', req.body.assigned_to]] });
   if (!caller || caller.status !== 'active' || caller.employee_type !== 'caller') return res.status(400).json({ error: 'Select an active Caller' });
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });

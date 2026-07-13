@@ -6,6 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { notifyUsers } = require('../utils/notifications');
 const { assertTransition, transitionLead, recordAssignment, eligibleUser } = require('../utils/managerWorkflow');
 const { mapById, pageOptions } = require('../utils/supabaseRelations');
+const { listFallbackDrafts } = require('../utils/emailDraftFallback');
 
 router.use(authenticateToken, requireRole('CEO'));
 
@@ -64,7 +65,10 @@ router.get('/leads/:id/full-history', asyncHandler(async (req, res) => {
     sb.list('lead_email_followups', { filters: [['lead_id', 'eq', lead.id]], order: 'created_at.asc', limit: 100 }),
     sb.one('lead_manager_outcomes', { filters: [['lead_id', 'eq', lead.id]] })
   ]);
-  res.json({ lead, assignments: assignments.data || [], statusHistory: statuses.data || [], activities: activities.data || [], callerOutcomes: calls.data || [], emails: emails.data || [], managerOutcome: outcome });
+  const fallbackEmails = await listFallbackDrafts(lead.id);
+  const stages = new Set((emails.data || []).map((email) => `${email.manager_id}:${email.email_stage}`));
+  const allEmails = [...(emails.data || []), ...fallbackEmails.filter((email) => !stages.has(`${email.manager_id}:${email.email_stage}`))];
+  res.json({ lead, assignments: assignments.data || [], statusHistory: statuses.data || [], activities: activities.data || [], callerOutcomes: calls.data || [], emails: allEmails, managerOutcome: outcome });
 }));
 
 module.exports = router;

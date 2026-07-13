@@ -1,4 +1,5 @@
 const sb = require('../database/supabaseClient');
+const { logActivity } = require('./activity');
 
 const WORKFLOW_STATUSES = [
   'new', 'assigned_to_manager', 'assigned_to_lead_generator', 'lead_generation_in_progress',
@@ -34,10 +35,15 @@ async function transitionLead(lead, to, user, reason, metadata = {}, extra = {})
   const from = lead.workflow_status || 'new';
   assertTransition(from, to);
   const updated = await sb.update('leads', [['id', 'eq', lead.id]], { workflow_status: to, updated_at: new Date().toISOString(), ...extra });
-  await Promise.all([
-    sb.insert('lead_status_history', { lead_id: lead.id, previous_status: from, new_status: to, changed_by_user_id: user.id, reason: reason || null, metadata }),
-    sb.insert('lead_activity', { lead_id: lead.id, event_type: to, performed_by_user_id: user.id, previous_status: from, new_status: to, metadata })
-  ]);
+  try {
+    await Promise.all([
+      sb.insert('lead_status_history', { lead_id: lead.id, previous_status: from, new_status: to, changed_by_user_id: user.id, reason: reason || null, metadata }),
+      sb.insert('lead_activity', { lead_id: lead.id, event_type: to, performed_by_user_id: user.id, previous_status: from, new_status: to, metadata })
+    ]);
+  } catch (error) {
+    console.warn('Workflow audit tables unavailable, using legacy activity log:', error.message);
+    await logActivity(user.id, `${reason || 'Lead workflow updated'} (${from} -> ${to})`, 'leads', lead.id);
+  }
   return updated;
 }
 

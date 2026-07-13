@@ -17,13 +17,13 @@ router.get('/', authenticateToken, requireRole('CEO', 'Manager'), asyncHandler(a
 router.post('/', authenticateToken, requireRole('CEO'), asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   const role = normalizeRole(req.body.role);
-  const employeeType = normalizeEmployeeType(req.body.employee_type);
+  const employeeType = role === 'Employee' ? normalizeEmployeeType(req.body.employee_type) : null;
 
   if (!name || !email || !password || !role) {
     return res.status(400).json({ error: 'Name, email, password, and role are required' });
   }
-  if (employeeType === undefined) return res.status(400).json({ error: 'Invalid employee type' });
-  if (isStaffRole(role) && !employeeType) return res.status(400).json({ error: 'Employee type is required for staff accounts' });
+  if (role === 'Employee' && employeeType === undefined) return res.status(400).json({ error: 'Invalid employee type' });
+  if (role === 'Employee' && !employeeType) return res.status(400).json({ error: 'Employee type is required for Employee accounts' });
 
   const existing = await sb.one('users', { select: 'id', filters: [['email', 'eq', email]] });
   if (existing) return res.status(409).json({ error: 'Email already exists' });
@@ -33,7 +33,7 @@ router.post('/', authenticateToken, requireRole('CEO'), asyncHandler(async (req,
     email,
     password: bcrypt.hashSync(password, 10),
     role,
-    employee_type: isStaffRole(role) ? employeeType : null,
+    employee_type: employeeType,
     status: 'active'
   });
 
@@ -64,15 +64,15 @@ router.put('/profile/me', authenticateToken, asyncHandler(async (req, res) => {
 router.put('/:id', authenticateToken, requireRole('CEO'), asyncHandler(async (req, res) => {
   const { name, email, status, password } = req.body;
   const role = normalizeRole(req.body.role);
-  const employeeType = normalizeEmployeeType(req.body.employee_type);
+  const employeeType = role === 'Employee' ? normalizeEmployeeType(req.body.employee_type) : null;
   const existing = await sb.one('users', { filters: [['id', 'eq', req.params.id]] });
   if (!existing) return res.status(404).json({ error: 'User not found' });
 
   if (!name || !email || !role) return res.status(400).json({ error: 'Name, email, and role are required' });
-  if (employeeType === undefined) return res.status(400).json({ error: 'Invalid employee type' });
-  if (isStaffRole(role) && !employeeType) return res.status(400).json({ error: 'Employee type is required for staff accounts' });
+  if (role === 'Employee' && employeeType === undefined) return res.status(400).json({ error: 'Invalid employee type' });
+  if (role === 'Employee' && !employeeType) return res.status(400).json({ error: 'Employee type is required for Employee accounts' });
 
-  const update = { name, email, role, status, employee_type: isStaffRole(role) ? employeeType : null };
+  const update = { name, email, role, status, employee_type: employeeType };
   if (password) update.password = bcrypt.hashSync(password, 10);
 
   const user = await sb.update('users', [['id', 'eq', req.params.id]], update);

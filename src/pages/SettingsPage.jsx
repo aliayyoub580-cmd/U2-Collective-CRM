@@ -9,7 +9,6 @@ import { FormInput, FormSelect, PrimaryButton, SecondaryButton } from '../compon
 import StatusBadge from '../components/StatusBadge';
 
 const ROLES = ['CEO', 'Manager', 'Sales Representative', 'Marketing', 'Accountant', 'Employee'];
-const STAFF_ROLES = ROLES.filter((role) => role !== 'CEO');
 const initialUserForm = { name: '', email: '', password: '', role: 'Employee', employee_type: '', status: 'active' };
 
 export default function SettingsPage() {
@@ -51,15 +50,16 @@ export default function SettingsPage() {
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
-    if (STAFF_ROLES.includes(userForm.role) && !userForm.employee_type) {
-      setUserErrors({ employee_type: 'Select an employee type for this staff account.' });
+    if (userForm.role === 'Employee' && !userForm.employee_type) {
+      setUserErrors({ employee_type: 'Select an employee type for this Employee account.' });
       return;
     }
     setSavingUser(true);
     setUserErrors({});
     try {
-      if (editUser) await api.put(`/users/${editUser.id}`, userForm);
-      else await api.post('/users', userForm);
+      const payload = { ...userForm, employee_type: userForm.role === 'Employee' ? userForm.employee_type : null };
+      if (editUser) await api.put(`/users/${editUser.id}`, payload);
+      else await api.post('/users', payload);
       setShowUserModal(false);
       setUserForm(initialUserForm);
       setUserNotice(editUser ? 'User updated successfully.' : 'User created successfully.');
@@ -224,10 +224,10 @@ export default function SettingsPage() {
             <FormInput label="Full Name" required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
             <FormInput label="Email" type="email" required value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
             {!editUser && <FormInput label="Password" type="password" required value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />}
-            <FormSelect label="Role" value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value, employee_type: e.target.value === 'CEO' ? '' : userForm.employee_type })}>
+            <FormSelect label="Role" value={userForm.role} onChange={(e) => { const role = e.target.value; setUserForm({ ...userForm, role, employee_type: role === 'Employee' ? userForm.employee_type : '' }); setUserErrors({ ...userErrors, employee_type: undefined }); }}>
               {ROLES.map(r => <option key={r}>{r}</option>)}
             </FormSelect>
-            {STAFF_ROLES.includes(userForm.role) && (
+            {userForm.role === 'Employee' && (
               <FormSelect label="Employee Type" required value={userForm.employee_type} error={userErrors.employee_type} onChange={(e) => setUserForm({ ...userForm, employee_type: e.target.value })}>
                 <option value="">Select employee type</option>
                 <option value="lead_generator">Lead Generator</option>

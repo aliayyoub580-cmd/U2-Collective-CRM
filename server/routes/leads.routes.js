@@ -146,6 +146,7 @@ router.patch('/:id/assign', authenticateToken, requireRole('CEO', 'Manager'), as
   if (!caller || caller.status !== 'active' || caller.employee_type !== 'caller') return res.status(400).json({ error: 'Select an active Caller' });
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
+  if (!lead.manager_id) return res.status(409).json({ error: 'Assign this lead to a Manager before assigning a Caller' });
   if (req.user.role === 'Manager' && Number(lead.manager_id) !== Number(req.user.id)) return res.status(404).json({ error: 'Lead not found' });
   await sb.update('lead_assignments', [['lead_id', 'eq', lead.id], ['active', 'eq', true]], { active: false });
   await sb.insert('lead_assignments', { lead_id: lead.id, assigned_to: caller.id, assigned_by: req.user.id, active: true });

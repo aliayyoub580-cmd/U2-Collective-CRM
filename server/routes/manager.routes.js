@@ -6,6 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { mapById, pageOptions } = require('../utils/supabaseRelations');
 const { notifyUsers } = require('../utils/notifications');
 const { assertTransition, transitionLead, recordAssignment, eligibleUser } = require('../utils/managerWorkflow');
+const { listFallbackDrafts, saveFallbackDraft, updateFallbackDraft } = require('../utils/emailDraftFallback');
 
 router.use(authenticateToken, requireRole('Manager'));
 
@@ -44,7 +45,6 @@ router.get('/leads', asyncHandler(async (req, res) => {
 router.get('/leads/:id', asyncHandler(async (req, res) => {
   const lead = await ownedLead(req.params.id, req.user.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  assertTransition(lead.workflow_status || 'new', 'assigned_to_lead_generator');
   const [assignments, statuses, activities, callerOutcomes, emails, managerOutcome, users] = await Promise.all([
     sb.list('lead_assignments', { filters: [['lead_id', 'eq', lead.id]], order: 'assigned_at.desc', limit: 1000 }),
     sb.list('lead_status_history', { filters: [['lead_id', 'eq', lead.id]], order: 'created_at.desc', limit: 1000 }),
@@ -55,14 +55,17 @@ router.get('/leads/:id', asyncHandler(async (req, res) => {
     mapById(sb, 'users', [lead.manager_id, lead.lead_generator_id, lead.caller_id])
   ]);
   const now = Date.now();
-  const emailsWithDueState = (emails.data || []).map((email) => ({ ...email, due_state: ['sent','cancelled','skipped'].includes(email.status) ? email.status : email.scheduled_for && new Date(email.scheduled_for).getTime() < now ? 'overdue' : 'upcoming' }));
+  const fallbackEmails = await listFallbackDrafts(lead.id, req.user.id);
+  const emailStages = new Set((emails.data || []).map((email) => email.email_stage));
+  const allEmails = [...(emails.data || []), ...fallbackEmails.filter((email) => !emailStages.has(email.email_stage))];
+  const emailsWithDueState = allEmails.map((email) => ({ ...email, due_state: ['sent','cancelled','skipped'].includes(email.status) ? email.status : email.scheduled_for && new Date(email.scheduled_for).getTime() < now ? 'overdue' : 'upcoming' }));
   res.json({ lead: { ...lead, manager_name: users.get(Number(lead.manager_id))?.name || null, lead_generator_name: users.get(Number(lead.lead_generator_id))?.name || null, caller_name: users.get(Number(lead.caller_id))?.name || null }, assignments: assignments.data || [], statusHistory: statuses.data || [], activities: activities.data || [], callerOutcomes: callerOutcomes.data || [], emails: emailsWithDueState, managerOutcome });
 }));
 
 router.post('/leads/:id/assign-lead-generator', asyncHandler(async (req, res) => {
   const lead = await ownedLead(req.params.id, req.user.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  assertTransition(lead.workflow_status || 'new', 'lead_generation_in_progress');
+  assertTransition(lead.workflow_status || 'new', 'assigned_to_lead_generator');
   const generator = await eligibleUser(req.body.lead_generator_id, { role: 'Employee', employeeType: 'lead_generator' });
   if (!generator) return res.status(400).json({ error: 'Select an active Lead Generator' });
   await recordAssignment({ lead, type: 'lead_generator', fromUserId: req.user.id, toUserId: generator.id, instructions: req.body.instructions, priority: req.body.priority, dueDate: req.body.due_date });
@@ -74,7 +77,7 @@ router.post('/leads/:id/assign-lead-generator', asyncHandler(async (req, res) =>
 router.post('/leads/:id/return-to-lead-generator', asyncHandler(async (req, res) => {
   const lead = await ownedLead(req.params.id, req.user.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  assertTransition(lead.workflow_status || 'new', 'approved_for_caller');
+  assertTransition(lead.workflow_status || 'new', 'lead_generation_in_progress');
   if (!lead.lead_generator_id) return res.status(409).json({ error: 'No Lead Generator is assigned' });
   if (!req.body.review_notes?.trim()) return res.status(400).json({ error: 'Review notes are required' });
   const updated = await transitionLead(lead, 'lead_generation_in_progress', req.user, 'Returned for correction', { review_notes: req.body.review_notes }, { current_owner_id: lead.lead_generator_id, review_notes: req.body.review_notes.trim() });
@@ -85,7 +88,7 @@ router.post('/leads/:id/return-to-lead-generator', asyncHandler(async (req, res)
 router.post('/leads/:id/approve', asyncHandler(async (req, res) => {
   const lead = await ownedLead(req.params.id, req.user.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  assertTransition(lead.workflow_status || 'new', 'rejected');
+  assertTransition(lead.workflow_status || 'new', 'approved_for_caller');
   const updated = await transitionLead(lead, 'approved_for_caller', req.user, 'Approved for Caller', { review_notes: req.body.review_notes || null }, { current_owner_id: req.user.id, review_notes: req.body.review_notes || null });
   res.json({ lead: updated });
 }));
@@ -93,7 +96,7 @@ router.post('/leads/:id/approve', asyncHandler(async (req, res) => {
 router.post('/leads/:id/reject', asyncHandler(async (req, res) => {
   const lead = await ownedLead(req.params.id, req.user.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  assertTransition(lead.workflow_status || 'new', 'assigned_to_caller');
+  assertTransition(lead.workflow_status || 'new', 'rejected');
   if (!req.body.review_notes?.trim()) return res.status(400).json({ error: 'A rejection reason is required' });
   const updated = await transitionLead(lead, 'rejected', req.user, 'Rejected by Manager', { review_notes: req.body.review_notes.trim() }, { current_owner_id: req.user.id, review_notes: req.body.review_notes.trim(), status: 'Rejected' });
   if (lead.lead_generator_id) await notifyUsers([lead.lead_generator_id], { lead_id: lead.id, type: 'lead_rejected', title: 'Lead rejected by Manager', message: `${lead.lead_id}: ${req.body.review_notes.trim()}` });
@@ -103,7 +106,7 @@ router.post('/leads/:id/reject', asyncHandler(async (req, res) => {
 router.post('/leads/:id/assign-caller', asyncHandler(async (req, res) => {
   const lead = await ownedLead(req.params.id, req.user.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  if (lead.workflow_status !== 'manager_follow_up') assertTransition(lead.workflow_status || 'new', 'manager_follow_up');
+  assertTransition(lead.workflow_status || 'new', 'assigned_to_caller');
   const caller = await eligibleUser(req.body.caller_id, { role: 'Employee', employeeType: 'caller' });
   if (!caller) return res.status(400).json({ error: 'Select an active Caller' });
   await recordAssignment({ lead, type: 'caller', fromUserId: req.user.id, toUserId: caller.id, instructions: req.body.instructions, priority: req.body.priority, dueDate: req.body.due_date });
@@ -120,20 +123,44 @@ router.post('/leads/:id/email', asyncHandler(async (req, res) => {
   if (!req.body.subject?.trim() || !req.body.message_body?.trim()) return res.status(400).json({ error: 'Subject and message are required' });
   const recipient = req.body.recipient_email || lead.clinic_email;
   if (!recipient) return res.status(400).json({ error: 'Clinic email is required' });
+  if (lead.workflow_status !== 'manager_follow_up') assertTransition(lead.workflow_status || 'new', 'manager_follow_up');
+  const fallbackEmails = await listFallbackDrafts(lead.id, req.user.id);
   const existing = await sb.one('lead_email_followups', { filters: [['lead_id', 'eq', lead.id], ['manager_id', 'eq', req.user.id], ['email_stage', 'eq', stage]] });
-  if (existing) return res.status(409).json({ error: 'This email stage already exists' });
+  const fallbackExisting = fallbackEmails.find((email) => email.email_stage === stage);
   let scheduledFor = req.body.scheduled_for || new Date().toISOString();
   if (stage !== 'initial') {
-    const initial = await sb.one('lead_email_followups', { filters: [['lead_id', 'eq', lead.id], ['manager_id', 'eq', req.user.id], ['email_stage', 'eq', 'initial']] });
+    const initial = await sb.one('lead_email_followups', { filters: [['lead_id', 'eq', lead.id], ['manager_id', 'eq', req.user.id], ['email_stage', 'eq', 'initial']] }) || fallbackEmails.find((email) => email.email_stage === 'initial');
     if (!initial) return res.status(409).json({ error: 'Create the Initial Email first' });
     const days = { day_3: 3, day_7: 7, day_14: 14 }[stage];
     const base = new Date(initial.sent_at || initial.created_at);
     base.setUTCDate(base.getUTCDate() + days);
     scheduledFor = base.toISOString();
   }
-  const email = await sb.insert('lead_email_followups', { lead_id: lead.id, manager_id: req.user.id, recipient_email: recipient, cc: req.body.cc || null, subject: req.body.subject.trim(), message_body: req.body.message_body.trim(), email_stage: stage, scheduled_for: scheduledFor, status: 'draft' });
+  if (fallbackExisting) {
+    const email = await updateFallbackDraft(fallbackExisting, { recipientEmail: recipient, subject: req.body.subject.trim(), messageBody: req.body.message_body.trim(), scheduledFor });
+    if (!['manager_follow_up'].includes(lead.workflow_status)) await transitionLead(lead, 'manager_follow_up', req.user, 'Manager email follow-up started', { email_stage: stage });
+    return res.json({ email, delivery: 'draft', storage: 'communications_fallback', message: 'Email draft updated successfully' });
+  }
+  if (existing) {
+    const email = await sb.update('lead_email_followups', [['id', 'eq', existing.id]], { recipient_email: recipient, subject: req.body.subject.trim(), message_body: req.body.message_body.trim(), scheduled_for: scheduledFor, status: 'draft', updated_at: new Date().toISOString() });
+    if (!['manager_follow_up'].includes(lead.workflow_status)) await transitionLead(lead, 'manager_follow_up', req.user, 'Manager email follow-up started', { email_stage: stage });
+    return res.json({ email, delivery: 'draft', storage: 'lead_email_followups', message: 'Email draft updated successfully' });
+  }
+  let email;
+  let storage = 'lead_email_followups';
+  try {
+    email = await sb.insert('lead_email_followups', { lead_id: lead.id, manager_id: req.user.id, recipient_email: recipient, subject: req.body.subject.trim(), message_body: req.body.message_body.trim(), email_stage: stage, scheduled_for: scheduledFor, status: 'draft' });
+  } catch (error) {
+    console.warn('Dedicated email draft storage unavailable, using communications fallback:', error.message);
+    try {
+      email = await saveFallbackDraft({ leadId: lead.id, managerId: req.user.id, recipientEmail: recipient, subject: req.body.subject.trim(), messageBody: req.body.message_body.trim(), emailStage: stage, scheduledFor });
+      storage = 'communications_fallback';
+    } catch (fallbackError) {
+      throw Object.assign(new Error(`Email draft storage is unavailable: ${fallbackError.message}`), { statusCode: 503 });
+    }
+  }
   if (!['manager_follow_up'].includes(lead.workflow_status)) await transitionLead(lead, 'manager_follow_up', req.user, 'Manager email follow-up started', { email_stage: stage });
-  res.status(201).json({ email, delivery: 'draft', message: 'Saved as draft because no verified mail provider is configured' });
+  res.status(201).json({ email, delivery: 'draft', storage, message: 'Saved as draft because no verified mail provider is configured' });
 }));
 
 router.post('/leads/:id/complete', asyncHandler(async (req, res) => {

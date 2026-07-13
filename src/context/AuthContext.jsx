@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
     if (!user) return false;
     if (module === 'profile') return true;
     if (user.role === 'CEO') return true;
-    if (user.employee_type === 'lead_generator') return ['dashboard', 'leads', 'profile'].includes(module);
+    if (user.employee_type === 'lead_generator') return ['dashboard', 'leads', 'tasks', 'profile'].includes(module);
     if (user.employee_type === 'caller') return ['dashboard', 'tasks', 'followups', 'profile'].includes(module);
     const permissions = {
       CEO: ['*'],

@@ -100,7 +100,10 @@ router.delete('/:id', authenticateToken, requireRole('CEO'), asyncHandler(async 
 }));
 
 router.get('/users/all', authenticateToken, asyncHandler(async (req, res) => {
-  const { data: users } = await sb.list('users', { select: 'id,name,email,role,employee_type', filters: [['status', 'eq', 'active']], order: 'name.asc' });
+  const filters = [['status', 'eq', 'active']];
+  const employeeType = normalizeEmployeeType(req.query.employee_type);
+  if (employeeType) filters.push(['employee_type', 'eq', employeeType]);
+  const { data: users } = await sb.list('users', { select: 'id,name,email,role,employee_type', filters, order: 'name.asc' });
   res.json({ users: (users || []).map((user) => ({ ...user, role: normalizeRole(user.role) })).filter((user) => STAFF_ROLES.includes(user.role)) });
 }));
 

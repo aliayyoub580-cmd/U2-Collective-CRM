@@ -10,6 +10,13 @@ function priorityRank(priority) {
   return { Urgent: 1, High: 2, Medium: 3, Low: 4 }[priority] || 5;
 }
 
+async function activeLeadGenerator(userId) {
+  return sb.one('users', {
+    select: 'id,name',
+    filters: [['id', 'eq', userId], ['employee_type', 'eq', 'lead_generator'], ['status', 'eq', 'active']]
+  });
+}
+
 router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const { status, priority, assigned_to, page = 1, limit = 20 } = req.query;
   const { offset, limit: limitNum } = pageOptions(page, limit);
@@ -48,6 +55,7 @@ router.post('/', authenticateToken, requireRole('CEO', 'Manager'), asyncHandler(
   if (!title) return res.status(400).json({ error: 'Title is required' });
   if (!assigned_to) return res.status(400).json({ error: 'Assigned employee is required' });
   if (!deadline) return res.status(400).json({ error: 'Deadline is required' });
+  if (!await activeLeadGenerator(assigned_to)) return res.status(400).json({ error: 'Select an active lead generator' });
 
   const task = await sb.insert('tasks', {
     title,
@@ -67,6 +75,7 @@ router.put('/:id', authenticateToken, requireRole('CEO', 'Manager'), asyncHandle
   const { title, description, assigned_to, deadline, priority, status } = req.body;
   const existing = await sb.one('tasks', { select: 'id', filters: [['id', 'eq', req.params.id]] });
   if (!existing) return res.status(404).json({ error: 'Task not found' });
+  if (!await activeLeadGenerator(assigned_to)) return res.status(400).json({ error: 'Select an active lead generator' });
 
   const task = await sb.update('tasks', [['id', 'eq', req.params.id]], {
     title,

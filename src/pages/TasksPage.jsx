@@ -14,6 +14,7 @@ const initialForm = { title: '', description: '', assigned_to: '', deadline: '',
 
 export default function TasksPage() {
   const { hasRole } = useAuth();
+  const canManageTasks = hasRole('CEO', 'Manager');
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -39,8 +40,11 @@ export default function TasksPage() {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
   useEffect(() => {
-    api.get('/employees/users/all').then(r => setUsers(r.data.users || [])).catch(() => {});
-  }, []);
+    if (!canManageTasks) return;
+    api.get('/employees/users/all', { params: { employee_type: 'lead_generator' } })
+      .then(r => setUsers(r.data.users || []))
+      .catch(() => setUsers([]));
+  }, [canManageTasks]);
 
   const openCreate = () => { setForm(initialForm); setEditItem(null); setErrors({}); setShowModal(true); };
   const openEdit = (item) => {
@@ -66,7 +70,9 @@ export default function TasksPage() {
       else await api.post('/tasks', form);
       setShowModal(false);
       fetchTasks();
-    } catch (err) {} finally { setSaving(false); }
+    } catch (err) {
+      setErrors({ general: err.response?.data?.error || 'Unable to save task.' });
+    } finally { setSaving(false); }
   };
 
   const handleStatusChange = async (id, status) => {
@@ -116,7 +122,7 @@ export default function TasksPage() {
       header: 'Actions', align: 'right',
       render: (row) => (
         <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-          {hasRole('CEO', 'Manager') && (
+          {canManageTasks && (
             <>
               <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="p-2 rounded-lg hover:bg-[#F1F5F9] text-[#475569] transition-colors"><Edit size={15} /></button>
               <button onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); }} className="p-2 rounded-lg hover:bg-red-50 text-[#DC2626] transition-colors"><Trash2 size={15} /></button>
@@ -135,7 +141,7 @@ export default function TasksPage() {
         actions={
           <>
             <button onClick={fetchTasks} className="p-2 rounded-xl hover:bg-[#F1F5F9] text-[#475569]"><RefreshCw size={16} /></button>
-            {hasRole('CEO', 'Manager') && <PrimaryButton onClick={openCreate} icon={Plus}>Add Task</PrimaryButton>}
+            {canManageTasks && <PrimaryButton onClick={openCreate} icon={Plus}>Add Task</PrimaryButton>}
           </>
         }
       />
@@ -165,19 +171,20 @@ export default function TasksPage() {
       {/* Table */}
       <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '18px', overflow: 'hidden' }}>
         <DataTable columns={columns} data={tasks} loading={loading}
-          emptyState={<EmptyState icon={CheckSquare} title="No tasks found" description="Create tasks and assign them to employees." action={hasRole('CEO', 'Manager') && <PrimaryButton onClick={openCreate} icon={Plus}>Add Task</PrimaryButton>} />}
+          emptyState={<EmptyState icon={CheckSquare} title="No tasks found" description="Create tasks and assign them to lead generators." action={canManageTasks && <PrimaryButton onClick={openCreate} icon={Plus}>Add Task</PrimaryButton>} />}
           pagination={{ page, limit: 15, total }} onPageChange={setPage} />
       </div>
 
       {/* Modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editItem ? 'Edit Task' : 'Create Task'} size="md">
         <form onSubmit={handleSave}>
+          {errors.general && <p style={{ color: '#DC2626', marginBottom: 12 }}>{errors.general}</p>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <FormInput label="Task Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} error={errors.title} />
             <FormTextarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
             <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <FormSelect label="Assign To" required value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} error={errors.assigned_to}>
-                <option value="">Select employee</option>
+                <option value="">Select lead generator</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </FormSelect>
               <FormInput label="Deadline" type="date" required value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} error={errors.deadline} />

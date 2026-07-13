@@ -32,8 +32,9 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const { offset, page: pageNum, limit: limitNum } = pageOptions(page, limit);
   const filters = [];
 
-  if (req.user.employee_type === 'lead_generator') filters.push(['created_by', 'eq', req.user.id]);
+  if (req.user.employee_type === 'lead_generator') filters.push(['lead_generator_id', 'eq', req.user.id]);
   else if (req.user.employee_type === 'caller') filters.push(['assigned_to', 'eq', req.user.id]);
+  else if (req.user.role === 'Manager') filters.push(['manager_id', 'eq', req.user.id]);
   else if (assigned_to) filters.push(['assigned_to', 'eq', assigned_to]);
   if (status) filters.push(['status', 'eq', status]);
   if (source) filters.push(['source', 'eq', source]);
@@ -60,7 +61,9 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const enriched = (leads || []).map((lead) => ({
     ...lead,
     assigned_to_name: userMap.get(Number(lead.assigned_to))?.name || null,
-    created_by_name: userMap.get(Number(lead.created_by))?.name || null
+    created_by_name: userMap.get(Number(lead.created_by))?.name || null,
+    manager_name: userMap.get(Number(lead.manager_id))?.name || null,
+    lead_generator_name: userMap.get(Number(lead.lead_generator_id))?.name || null
   }));
 
   res.json({ leads: enriched, total, page: pageNum, limit: limitNum });
@@ -98,6 +101,10 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
     status: 'New',
     assigned_to: req.user.role === 'CEO' ? (assigned_to || null) : null,
     created_by: req.user.id,
+    lead_generator_id: req.user.employee_type === 'lead_generator' ? req.user.id : null,
+    current_owner_id: req.user.id,
+    workflow_status: 'new',
+    submitted_at: null,
     notes
   });
   const lead = await sb.update('leads', [['id', 'eq', createdLead.id]], {
@@ -116,8 +123,22 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
   }
 
   await logActivity(req.user.id, 'Created Lead: ' + clinicName, 'leads', lead.id);
+  await sb.insert('lead_activity', { lead_id: lead.id, event_type: 'lead_created', performed_by_user_id: req.user.id, previous_status: null, new_status: 'new', metadata: { source: lead.source } });
   await notifyUsers([req.user.id], { lead_id: lead.id, type: 'lead_created', title: 'Lead Created Successfully', message: `${lead.lead_id} - ${clinicName}` });
   res.status(201).json({ lead });
+}));
+
+router.post('/:id/submit', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.employee_type !== 'lead_generator') return res.status(403).json({ error: 'Lead Generator access required' });
+  const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id], ['lead_generator_id', 'eq', req.user.id]] });
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
+  if (!lead.manager_id) return res.status(409).json({ error: 'An Admin must assign a Manager before this lead can be submitted' });
+  const required = ['client_clinic_name', 'clinic_email', 'clinic_phone', 'clinic_specialty', 'state', 'city', 'source', 'practice_size'];
+  if (required.some((field) => !String(lead[field] || '').trim())) return res.status(400).json({ error: 'Complete all required clinic information before submitting' });
+  const { transitionLead } = require('../utils/managerWorkflow');
+  const updated = await transitionLead(lead, 'submitted_by_lead_generator', req.user, 'Lead submitted to Manager', {}, { current_owner_id: lead.manager_id, submitted_at: new Date().toISOString() });
+  await notifyUsers([lead.manager_id], { lead_id: lead.id, type: 'lead_submitted', title: 'Lead ready for review', message: `${lead.lead_id} - ${lead.client_clinic_name || lead.company_name}` });
+  res.json({ lead: updated });
 }));
 
 router.patch('/:id/assign', authenticateToken, requireRole('CEO', 'Manager'), asyncHandler(async (req, res) => {
@@ -125,6 +146,7 @@ router.patch('/:id/assign', authenticateToken, requireRole('CEO', 'Manager'), as
   if (!caller || caller.status !== 'active' || caller.employee_type !== 'caller') return res.status(400).json({ error: 'Select an active Caller' });
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
+  if (req.user.role === 'Manager' && Number(lead.manager_id) !== Number(req.user.id)) return res.status(404).json({ error: 'Lead not found' });
   await sb.update('lead_assignments', [['lead_id', 'eq', lead.id], ['active', 'eq', true]], { active: false });
   await sb.insert('lead_assignments', { lead_id: lead.id, assigned_to: caller.id, assigned_by: req.user.id, active: true });
   const updated = await sb.update('leads', [['id', 'eq', lead.id]], { assigned_to: caller.id, status: 'Assigned' });
@@ -133,35 +155,12 @@ router.patch('/:id/assign', authenticateToken, requireRole('CEO', 'Manager'), as
   res.json({ lead: updated });
 }));
 
-router.post('/:id/call', authenticateToken, asyncHandler(async (req, res) => {
-  if (req.user.employee_type !== 'caller') return res.status(403).json({ error: 'Only Callers can record calls' });
-  const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id], ['assigned_to', 'eq', req.user.id]] });
-  if (!lead) return res.status(404).json({ error: 'Assigned lead not found' });
-  if (!['Called', 'No Answer'].includes(req.body.call_status)) return res.status(400).json({ error: 'Invalid call status' });
-  const attempt = await sb.insert('call_attempts', { lead_id: lead.id, employee_id: req.user.id, call_status: req.body.call_status, notes: req.body.notes || null });
-  const leadUpdate = { status: req.body.call_status };
-  if (req.body.call_status === 'Called') Object.assign(leadUpdate, {
-    practice_manager_name: req.body.practice_manager_name || null,
-    practice_manager_phone: req.body.practice_manager_phone || null,
-    practice_manager_email: req.body.practice_manager_email || null,
-    practice_manager_linkedin: req.body.practice_manager_linkedin || null,
-    practice_manager_position: req.body.practice_manager_position || null
-  });
-  await sb.update('leads', [['id', 'eq', lead.id]], leadUpdate);
-  let followup = null;
-  if (req.body.call_status === 'Called' && req.body.followup_date) {
-    followup = await sb.insert('followups', { lead_id: lead.id, title: `Follow up: ${lead.client_clinic_name || lead.company_name}`, followup_date: req.body.followup_date, followup_time: req.body.followup_time || null, method: 'Phone Call', assigned_to: req.user.id, status: 'Pending' });
-    await logActivity(req.user.id, `Reminder Added for ${lead.lead_id}`, 'followups', followup.id);
-  }
-  await logActivity(req.user.id, `${req.body.call_status}: ${lead.lead_id}`, 'leads', lead.id);
-  res.status(201).json({ attempt, followup });
-}));
-
 router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  if (req.user.employee_type === 'lead_generator' && Number(lead.created_by) !== Number(req.user.id)) return res.status(403).json({ error: 'This lead is not yours' });
+  if (req.user.employee_type === 'lead_generator' && Number(lead.lead_generator_id) !== Number(req.user.id)) return res.status(403).json({ error: 'This lead is not yours' });
   if (req.user.employee_type === 'caller' && Number(lead.assigned_to) !== Number(req.user.id)) return res.status(403).json({ error: 'This lead is not assigned to you' });
+  if (req.user.role === 'Manager' && Number(lead.manager_id) !== Number(req.user.id)) return res.status(404).json({ error: 'Lead not found' });
 
   const [users, filesRes, followupsRes, communicationsRes, proposalsRes] = await Promise.all([
     mapById(sb, 'users', [lead.assigned_to]),
@@ -194,7 +193,8 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
   } = req.body;
   const existing = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
   if (!existing) return res.status(404).json({ error: 'Lead not found' });
-  if (req.user.employee_type === 'lead_generator' && Number(existing.created_by) !== Number(req.user.id)) return res.status(403).json({ error: 'You can only edit your own leads' });
+  if (req.user.employee_type === 'lead_generator' && Number(existing.lead_generator_id) !== Number(req.user.id)) return res.status(403).json({ error: 'You can only edit your own leads' });
+  if (req.user.employee_type === 'lead_generator' && !['new', 'assigned_to_manager', 'assigned_to_lead_generator', 'lead_generation_in_progress'].includes(existing.workflow_status || 'new')) return res.status(409).json({ error: 'This submission is locked while the Manager reviews it' });
   const clinicName = client_clinic_name || company_name;
 
   const lead = await sb.update('leads', [['id', 'eq', req.params.id]], {

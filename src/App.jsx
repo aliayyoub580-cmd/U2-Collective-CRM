@@ -6,6 +6,8 @@ import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import LeadsPage from './pages/LeadsPage';
+import ManagerLeadsPage from './pages/ManagerLeadsPage';
+import AdminCompletedLeadsPage from './pages/AdminCompletedLeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import FollowUpsPage from './pages/FollowUpsPage';
 import CommunicationsPage from './pages/CommunicationsPage';
@@ -65,10 +67,13 @@ export default function App() {
         <PrivateRoute module="dashboard"><Dashboard /></PrivateRoute>
       } />
       <Route path="/leads" element={
-        <PrivateRoute module="leads"><LeadsPage /></PrivateRoute>
+        <PrivateRoute module="leads">{user?.role === 'Manager' ? <ManagerLeadsPage /> : <LeadsPage />}</PrivateRoute>
       } />
       <Route path="/leads/:id" element={
         <PrivateRoute module="leads"><LeadDetailPage /></PrivateRoute>
+      } />
+      <Route path="/completed-leads" element={
+        <PrivateRoute module="completed_leads"><AdminCompletedLeadsPage /></PrivateRoute>
       } />
       <Route path="/follow-ups" element={
         <PrivateRoute module="followups"><FollowUpsPage /></PrivateRoute>

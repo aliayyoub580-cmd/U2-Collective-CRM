@@ -27,6 +27,47 @@ router.get('/assigned-leads', authenticateToken, asyncHandler(async (req, res) =
   res.json({ leads: data || [] });
 }));
 
+router.post('/assigned-leads/:id/call', authenticateToken, asyncHandler(async (req, res) => {
+  if (req.user.employee_type !== 'caller') return res.status(403).json({ error: 'Only callers can record calls' });
+  const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id], ['assigned_to', 'eq', req.user.id]] });
+  if (!lead) return res.status(404).json({ error: 'Assigned lead not found' });
+  if (!['Called', 'No Answer'].includes(req.body.call_status)) return res.status(400).json({ error: 'Invalid call status' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.call_date || ''))) return res.status(400).json({ error: 'Call date is required' });
+
+  const attempt = await sb.insert('call_attempts', {
+    lead_id: lead.id,
+    employee_id: req.user.id,
+    call_status: req.body.call_status,
+    called_at: `${req.body.call_date}T12:00:00.000Z`,
+    notes: req.body.notes || null
+  });
+  const leadUpdate = { status: req.body.call_status };
+  if (req.body.call_status === 'Called') Object.assign(leadUpdate, {
+    practice_manager_name: req.body.practice_manager_name || null,
+    practice_manager_phone: req.body.practice_manager_phone || null,
+    practice_manager_email: req.body.practice_manager_email || null,
+    practice_manager_linkedin: req.body.practice_manager_linkedin || null,
+    practice_manager_position: req.body.practice_manager_position || null
+  });
+  await sb.update('leads', [['id', 'eq', lead.id]], leadUpdate);
+
+  let followup = null;
+  if (req.body.call_status === 'Called' && req.body.followup_date) {
+    followup = await sb.insert('followups', {
+      lead_id: lead.id,
+      title: `Follow up: ${lead.client_clinic_name || lead.company_name}`,
+      followup_date: req.body.followup_date,
+      followup_time: req.body.followup_time || null,
+      method: 'Phone Call',
+      assigned_to: req.user.id,
+      status: 'Pending'
+    });
+    await logActivity(req.user.id, `Reminder Added for ${lead.lead_id}`, 'followups', followup.id);
+  }
+  await logActivity(req.user.id, `${req.body.call_status}: ${lead.lead_id}`, 'leads', lead.id);
+  res.status(201).json({ attempt, followup });
+}));
+
 router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   const { status, priority, assigned_to, page = 1, limit = 20 } = req.query;
   const { offset, limit: limitNum } = pageOptions(page, limit);

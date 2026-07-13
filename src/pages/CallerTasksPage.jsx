@@ -8,71 +8,23 @@ import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 import { FormInput, FormSelect, FormTextarea, PrimaryButton, SecondaryButton } from '../components/FormFields';
 
-const initialCall = { call_status: '', notes: '', practice_manager_name: '', practice_manager_phone: '', practice_manager_email: '', practice_manager_linkedin: '', practice_manager_position: '', followup_date: '', followup_time: '' };
+const blank = () => ({ call_status: '', contact_result: '', contact_person_name: '', contact_person_role: '', phone_number_used: '', call_date: new Date().toISOString().split('T')[0], call_time: '', call_duration: '', interest_status: 'Unknown', follow_up_required: false, follow_up_date: '', notes: '', additional_contact_information: '' });
 
 export default function CallerTasksPage() {
-  const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState(initialCall);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-
-  const load = async () => {
-    setLoading(true);
-    try { const res = await api.get('/tasks/assigned-leads'); setLeads(res.data.leads || []); }
-    catch (error) { setMessage(error.response?.data?.error || 'Unable to load assigned leads.'); }
-    finally { setLoading(false); }
-  };
+  const [leads, setLeads] = useState([]); const [loading, setLoading] = useState(true); const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(blank()); const [saving, setSaving] = useState(false); const [message, setMessage] = useState('');
+  const load = async () => { setLoading(true); try { const response = await api.get('/caller/leads'); setLeads(response.data.leads || []); } catch (error) { setMessage(error.response?.data?.error || 'Unable to load assigned leads.'); } finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
-
-  const open = (lead) => { setSelected(lead); setForm(initialCall); setMessage(''); };
-  const save = async (event) => {
-    event.preventDefault();
-    if (!form.call_status) return setMessage('Select a call status.');
-    setSaving(true);
-    try { await api.post(`/leads/${selected.id}/call`, form); setMessage('Call activity saved successfully.'); setSelected(null); await load(); }
-    catch (error) { setMessage(error.response?.data?.error || 'Unable to save call activity.'); }
-    finally { setSaving(false); }
-  };
-
+  const open = (lead) => { setSelected(lead); setForm({ ...blank(), phone_number_used: lead.clinic_phone || '' }); setMessage(''); };
+  const save = async (event) => { event.preventDefault(); if (!form.call_status || !form.call_date || !form.interest_status) return setMessage('Call status, call date and interest status are required.'); if (form.follow_up_required && !form.follow_up_date) return setMessage('Select a follow-up date.'); setSaving(true); try { await api.post(`/caller/leads/${selected.id}/complete`, form); setSelected(null); setMessage('Caller outcome submitted to the Manager and Admin.'); await load(); } catch (error) { setMessage(error.response?.data?.error || 'Unable to submit caller outcome.'); } finally { setSaving(false); } };
   const columns = [
-    { header: 'Lead', render: (row) => <div><strong>{row.lead_id}</strong><p style={{ color: '#64748B', fontSize: '12px' }}>{row.client_clinic_name || row.company_name}</p></div> },
-    { header: 'Email', key: 'clinic_email' },
-    { header: 'Phone', key: 'clinic_phone' },
-    { header: 'State', key: 'state' },
-    { header: 'City', key: 'city' },
-    { header: 'Specialty', key: 'clinic_specialty' },
-    { header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+    { header: 'Lead', render: (row) => <div><strong>{row.lead_id}</strong><p className="text-xs text-slate-500">{row.client_clinic_name || row.company_name}</p></div> },
+    { header: 'Phone', key: 'clinic_phone' }, { header: 'Manager', render: (row) => row.manager?.name || '-' },
+    { header: 'Instructions', render: (row) => row.caller_instructions || '-' }, { header: 'Due', render: (row) => row.caller_due_date ? new Date(row.caller_due_date).toLocaleDateString() : '-' },
+    { header: 'Status', render: (row) => <StatusBadge status={String(row.workflow_status || row.status).replaceAll('_', ' ')} /> },
     { header: 'Action', align: 'right', render: (row) => <PrimaryButton onClick={() => open(row)} icon={PhoneCall}>Open</PrimaryButton> }
   ];
-
-  return <div>
-    <PageHeader title="Assigned Leads" subtitle={`${leads.length} leads assigned to you`} actions={<button onClick={load} className="p-2 rounded-xl hover:bg-[#F1F5F9] text-[#475569]"><RefreshCw size={16} /></button>} />
-    {message && <div style={{ padding: '11px 14px', marginBottom: '16px', borderRadius: '12px', background: '#EFF6FF', color: '#1D4ED8' }}>{message}</div>}
-    <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '18px', overflow: 'hidden' }}>
-      <DataTable columns={columns} data={leads} loading={loading} emptyState={<EmptyState icon={PhoneCall} title="No assigned leads" description="New assignments from the Admin or Manager will appear here." />} />
-    </div>
-    <Modal isOpen={!!selected} onClose={() => setSelected(null)} title={selected ? `${selected.lead_id} · ${selected.client_clinic_name || selected.company_name}` : 'Lead'} size="lg">
-      {selected && <form onSubmit={save}>
-        <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '12px', marginBottom: '18px', color: '#475569', fontSize: '13px' }}>
-          <strong>{selected.clinic_email}</strong> · {selected.clinic_phone}<br />{selected.state}, {selected.city} · {selected.clinic_specialty}<br />{selected.notes || 'No notes'}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <FormSelect label="Call Status" required value={form.call_status} onChange={(e) => setForm({ ...form, call_status: e.target.value })}><option value="">Select status</option><option>Called</option><option>No Answer</option></FormSelect>
-          <FormTextarea label="Call Notes" rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          {form.call_status === 'Called' && <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <FormInput label="Practice Manager Name" value={form.practice_manager_name} onChange={(e) => setForm({ ...form, practice_manager_name: e.target.value })} />
-            <FormInput label="Manager Phone" value={form.practice_manager_phone} onChange={(e) => setForm({ ...form, practice_manager_phone: e.target.value })} />
-            <FormInput label="Manager Email" type="email" value={form.practice_manager_email} onChange={(e) => setForm({ ...form, practice_manager_email: e.target.value })} />
-            <FormInput label="LinkedIn URL" value={form.practice_manager_linkedin} onChange={(e) => setForm({ ...form, practice_manager_linkedin: e.target.value })} />
-            <FormInput label="Position / Designation" value={form.practice_manager_position} onChange={(e) => setForm({ ...form, practice_manager_position: e.target.value })} />
-            <FormInput label="Follow-up Date" type="date" value={form.followup_date} onChange={(e) => setForm({ ...form, followup_date: e.target.value })} />
-            <FormInput label="Follow-up Time" type="time" value={form.followup_time} onChange={(e) => setForm({ ...form, followup_time: e.target.value })} />
-          </div>}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}><SecondaryButton onClick={() => setSelected(null)}>Cancel</SecondaryButton><PrimaryButton type="submit" loading={saving}>{form.call_status === 'Called' && form.followup_date ? 'Add Follow Up' : 'Save Call'}</PrimaryButton></div>
-      </form>}
-    </Modal>
+  return <div><PageHeader title="Assigned Leads" subtitle={`${leads.length} leads assigned to you`} actions={<button onClick={load} className="p-2 rounded-xl text-slate-600"><RefreshCw size={16}/></button>}/>{message && <div className="mb-4 rounded-xl bg-blue-50 p-3 text-blue-700">{message}</div>}<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><DataTable columns={columns} data={leads} loading={loading} emptyState={<EmptyState icon={PhoneCall} title="No assigned leads" description="New assignments from your Manager will appear here."/>}/></div>
+    <Modal isOpen={!!selected} onClose={() => setSelected(null)} title={selected ? `${selected.lead_id} - ${selected.client_clinic_name || selected.company_name}` : 'Lead'} size="lg">{selected && <form onSubmit={save}><div className="mb-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600"><b>{selected.clinic_email}</b> | {selected.clinic_phone}<br/>{selected.state}, {selected.city} | {selected.clinic_specialty}<br/><b>Manager:</b> {selected.manager?.name || '-'} ({selected.manager?.email || 'no email'})<br/><b>Instructions:</b> {selected.caller_instructions || 'No special instructions'}</div><div className="grid gap-4 md:grid-cols-2"><FormSelect label="Call Status" required value={form.call_status} onChange={(e) => setForm({...form,call_status:e.target.value})}><option value="">Select status</option>{['Connected','No Answer','Busy','Voicemail','Wrong Number','Call Back Requested','Not Reachable','Completed'].map((item) => <option key={item}>{item}</option>)}</FormSelect><FormSelect label="Interest Status" required value={form.interest_status} onChange={(e) => setForm({...form,interest_status:e.target.value})}>{['Interested','Maybe Interested','Not Interested','Needs Follow-Up','Decision Maker Not Reached','Unknown'].map((item) => <option key={item}>{item}</option>)}</FormSelect><FormInput label="Contact Result" value={form.contact_result} onChange={(e) => setForm({...form,contact_result:e.target.value})}/><FormInput label="Contact Person Name" value={form.contact_person_name} onChange={(e) => setForm({...form,contact_person_name:e.target.value})}/><FormInput label="Contact Person Role" value={form.contact_person_role} onChange={(e) => setForm({...form,contact_person_role:e.target.value})}/><FormInput label="Phone Number Used" value={form.phone_number_used} onChange={(e) => setForm({...form,phone_number_used:e.target.value})}/><FormInput label="Call Date" type="date" required value={form.call_date} onChange={(e) => setForm({...form,call_date:e.target.value})}/><FormInput label="Call Time" type="time" value={form.call_time} onChange={(e) => setForm({...form,call_time:e.target.value})}/><FormInput label="Call Duration" placeholder="e.g. 8 minutes" value={form.call_duration} onChange={(e) => setForm({...form,call_duration:e.target.value})}/><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={form.follow_up_required} onChange={(e) => setForm({...form,follow_up_required:e.target.checked})}/> Follow-up required</label>{form.follow_up_required && <FormInput label="Follow-up Date" type="date" required value={form.follow_up_date} onChange={(e) => setForm({...form,follow_up_date:e.target.value})}/>}<div className="md:col-span-2"><FormTextarea label="Call Notes" rows={4} value={form.notes} onChange={(e) => setForm({...form,notes:e.target.value})}/><FormTextarea label="Additional Contact Information" rows={3} value={form.additional_contact_information} onChange={(e) => setForm({...form,additional_contact_information:e.target.value})}/></div></div><div className="mt-5 flex justify-end gap-3"><SecondaryButton onClick={() => setSelected(null)}>Cancel</SecondaryButton><PrimaryButton type="submit" loading={saving}>Submit Caller Outcome</PrimaryButton></div></form>}</Modal>
   </div>;
 }

@@ -72,6 +72,8 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
     assignedLeads: leads.length,
     pendingLeads: leads.filter((lead) => ['Assigned', 'New', 'No Answer'].includes(lead.status)).length,
     interestedLeads: leads.filter((lead) => lead.status === 'Interested').length,
+    totalFollowUps: followups.length,
+    pendingFollowUps: followups.filter((followup) => followup.status === 'Pending').length,
     todaysFollowUps: followups.filter((followup) => followup.followup_date === today).length,
     todaysReminder: followups.filter((followup) => followup.followup_date === today && followup.status === 'Pending').length,
     totalLeads: leads.length,

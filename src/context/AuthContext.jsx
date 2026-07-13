@@ -70,7 +70,7 @@ export function AuthProvider({ children }) {
     if (user.employee_type === 'caller') return ['dashboard', 'tasks', 'followups', 'profile'].includes(module);
     const permissions = {
       CEO: ['*'],
-      Manager: ['dashboard', 'leads', 'reports', 'communications'],
+      Manager: ['dashboard', 'leads', 'followups', 'profile'],
       'Sales Representative': ['dashboard', 'leads', 'followups', 'communications', 'proposals'],
       Marketing: ['dashboard', 'leads', 'reports'],
       Accountant: ['dashboard', 'clients', 'reports'],

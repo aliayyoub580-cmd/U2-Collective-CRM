@@ -52,11 +52,14 @@ app.use('/api/employees', require('./routes/employees.routes'));
 app.use('/api/reports', authenticateToken, requireModule('reports'), require('./routes/reports.routes'));
 app.use('/api/users', require('./routes/users.routes'));
 app.use('/api/notifications', require('./routes/notifications.routes'));
+app.use('/api/manager', require('./routes/manager.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
+app.use('/api/caller', require('./routes/caller.routes'));
 
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error', message: err.message });
+  res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : 'Internal server error', message: err.message });
 });
 
 if (require.main === module) {

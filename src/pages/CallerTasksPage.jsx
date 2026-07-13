@@ -20,7 +20,7 @@ export default function CallerTasksPage() {
 
   const load = async () => {
     setLoading(true);
-    try { const res = await api.get('/leads', { params: { limit: 100 } }); setLeads(res.data.leads || []); }
+    try { const res = await api.get('/tasks/assigned-leads'); setLeads(res.data.leads || []); }
     catch (error) { setMessage(error.response?.data?.error || 'Unable to load assigned leads.'); }
     finally { setLoading(false); }
   };
@@ -51,7 +51,7 @@ export default function CallerTasksPage() {
     <PageHeader title="Assigned Leads" subtitle={`${leads.length} leads assigned to you`} actions={<button onClick={load} className="p-2 rounded-xl hover:bg-[#F1F5F9] text-[#475569]"><RefreshCw size={16} /></button>} />
     {message && <div style={{ padding: '11px 14px', marginBottom: '16px', borderRadius: '12px', background: '#EFF6FF', color: '#1D4ED8' }}>{message}</div>}
     <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '18px', overflow: 'hidden' }}>
-      <DataTable columns={columns} data={leads} loading={loading} emptyState={<EmptyState icon={PhoneCall} title="No assigned leads" description="New assignments from the CEO will appear here." />} />
+      <DataTable columns={columns} data={leads} loading={loading} emptyState={<EmptyState icon={PhoneCall} title="No assigned leads" description="New assignments from the Admin or Manager will appear here." />} />
     </div>
     <Modal isOpen={!!selected} onClose={() => setSelected(null)} title={selected ? `${selected.lead_id} · ${selected.client_clinic_name || selected.company_name}` : 'Lead'} size="lg">
       {selected && <form onSubmit={save}>

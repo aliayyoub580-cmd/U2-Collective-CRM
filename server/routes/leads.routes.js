@@ -34,7 +34,6 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
 
   if (req.user.employee_type === 'lead_generator') filters.push(['created_by', 'eq', req.user.id]);
   else if (req.user.employee_type === 'caller') filters.push(['assigned_to', 'eq', req.user.id]);
-  else if (req.user.role === 'Manager') filters.push(['assigned_to', 'eq', req.user.id]);
   else if (assigned_to) filters.push(['assigned_to', 'eq', assigned_to]);
   if (status) filters.push(['status', 'eq', status]);
   if (source) filters.push(['source', 'eq', source]);
@@ -121,7 +120,7 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
   res.status(201).json({ lead });
 }));
 
-router.patch('/:id/assign', authenticateToken, requireRole('CEO'), asyncHandler(async (req, res) => {
+router.patch('/:id/assign', authenticateToken, requireRole('CEO', 'Manager'), asyncHandler(async (req, res) => {
   const caller = await sb.one('users', { select: 'id,name,employee_type,status', filters: [['id', 'eq', req.body.assigned_to]] });
   if (!caller || caller.status !== 'active' || caller.employee_type !== 'caller') return res.status(400).json({ error: 'Select an active Caller' });
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
@@ -162,7 +161,7 @@ router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   if (req.user.employee_type === 'lead_generator' && Number(lead.created_by) !== Number(req.user.id)) return res.status(403).json({ error: 'This lead is not yours' });
-  if ((req.user.employee_type === 'caller' || req.user.role === 'Manager') && Number(lead.assigned_to) !== Number(req.user.id)) return res.status(403).json({ error: 'This lead is not assigned to you' });
+  if (req.user.employee_type === 'caller' && Number(lead.assigned_to) !== Number(req.user.id)) return res.status(403).json({ error: 'This lead is not assigned to you' });
 
   const [users, filesRes, followupsRes, communicationsRes, proposalsRes] = await Promise.all([
     mapById(sb, 'users', [lead.assigned_to]),

@@ -47,7 +47,7 @@ function requireModule(module) {
     if (!user) return res.status(401).json({ error: 'Not authenticated' });
     if (user.role === 'CEO') return next();
     const employeeAccess = user.employee_type === 'lead_generator'
-      ? ['dashboard', 'leads', 'profile']
+      ? ['dashboard', 'leads', 'tasks', 'profile']
       : user.employee_type === 'caller'
         ? ['dashboard', 'tasks', 'followups', 'profile']
         : null;

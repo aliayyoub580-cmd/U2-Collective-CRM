@@ -45,8 +45,6 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
     leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
     tasks = tasks.filter((task) => Number(task.assigned_to) === Number(user.id));
     followups = followups.filter((followup) => Number(followup.assigned_to) === Number(user.id));
-  } else if (user.role === 'Manager') {
-    leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
   } else if (user.role === 'Sales Representative') {
     leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
     tasks = tasks.filter((task) => Number(task.assigned_to) === Number(user.id));

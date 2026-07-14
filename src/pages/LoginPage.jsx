@@ -80,7 +80,7 @@ export default function LoginPage() {
             />
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '4px' }}>
-            U2 Collective LLP
+            U2 Collective
           </h1>
           <p style={{ fontSize: '14px', color: '#64748B' }}>CRM Management System</p>
         </div>

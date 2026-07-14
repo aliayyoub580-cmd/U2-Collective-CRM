@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, User, Users, Plus, Edit, Trash2, Shield } from 'lucide-react';
+import { User, Users, Plus, Edit, Trash2, Shield, Eye, EyeOff } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import PageHeader from '../components/PageHeader';
@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', current_password: '', new_password: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [deleteUserId, setDeleteUserId] = useState(null);
@@ -25,6 +27,7 @@ export default function SettingsPage() {
   const [savingUser, setSavingUser] = useState(false);
   const [userErrors, setUserErrors] = useState({});
   const [userNotice, setUserNotice] = useState('');
+  const [showUserPassword, setShowUserPassword] = useState(false);
 
   useEffect(() => {
     if (hasRole('CEO') && activeTab === 'users') {
@@ -45,8 +48,17 @@ export default function SettingsPage() {
     } finally { setProfileSaving(false); }
   };
 
-  const openCreateUser = () => { setUserForm(initialUserForm); setUserErrors({}); setEditUser(null); setShowUserModal(true); };
-  const openEditUser = (u) => { setUserForm({ name: u.name, email: u.email, password: '', role: u.role, employee_type: u.employee_type || '', status: u.status }); setUserErrors({}); setEditUser(u); setShowUserModal(true); };
+  const openCreateUser = () => { setUserForm(initialUserForm); setUserErrors({}); setShowUserPassword(false); setEditUser(null); setShowUserModal(true); };
+  const openEditUser = (u) => { setUserForm({ name: u.name, email: u.email, password: '', role: u.role, employee_type: u.employee_type || '', status: u.status }); setUserErrors({}); setShowUserPassword(false); setEditUser(u); setShowUserModal(true); };
+
+  const PasswordInput = ({ label, value, onChange, visible, onToggle, required = false, placeholder }) => (
+    <div style={{ position: 'relative' }}>
+      <FormInput label={label} type={visible ? 'text' : 'password'} required={required} value={value} onChange={onChange} placeholder={placeholder} />
+      <button type="button" onClick={onToggle} aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`} title={visible ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '12px', bottom: '11px', border: 0, background: 'transparent', color: '#64748B', cursor: 'pointer', padding: '2px' }}>
+        {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+      </button>
+    </div>
+  );
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
@@ -131,8 +143,8 @@ export default function SettingsPage() {
               <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '16px', marginTop: '4px' }}>
                 <p style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '12px' }}>Change Password (optional)</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <FormInput label="Current Password" type="password" value={profileForm.current_password} onChange={(e) => setProfileForm({ ...profileForm, current_password: e.target.value })} />
-                  <FormInput label="New Password" type="password" value={profileForm.new_password} onChange={(e) => setProfileForm({ ...profileForm, new_password: e.target.value })} />
+                  <PasswordInput label="Current Password" visible={showCurrentPassword} onToggle={() => setShowCurrentPassword(value => !value)} value={profileForm.current_password} onChange={(e) => setProfileForm({ ...profileForm, current_password: e.target.value })} />
+                  <PasswordInput label="New Password" visible={showNewPassword} onToggle={() => setShowNewPassword(value => !value)} value={profileForm.new_password} onChange={(e) => setProfileForm({ ...profileForm, new_password: e.target.value })} />
                 </div>
               </div>
               <PrimaryButton type="submit" loading={profileSaving}>Save Changes</PrimaryButton>
@@ -223,7 +235,15 @@ export default function SettingsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <FormInput label="Full Name" required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
             <FormInput label="Email" type="email" required value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
-            {!editUser && <FormInput label="Password" type="password" required value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />}
+            <PasswordInput
+              label={editUser ? 'New Password (optional)' : 'Password'}
+              required={!editUser}
+              visible={showUserPassword}
+              onToggle={() => setShowUserPassword(value => !value)}
+              value={userForm.password}
+              onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+              placeholder={editUser ? 'Leave blank to keep current password' : undefined}
+            />
             <FormSelect label="Role" value={userForm.role} onChange={(e) => { const role = e.target.value; setUserForm({ ...userForm, role, employee_type: role === 'Employee' ? userForm.employee_type : '' }); setUserErrors({ ...userErrors, employee_type: undefined }); }}>
               {ROLES.map(r => <option key={r}>{r}</option>)}
             </FormSelect>

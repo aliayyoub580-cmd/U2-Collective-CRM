@@ -21,7 +21,14 @@ router.post('/login', asyncHandler(async (req, res) => {
     ]
   });
 
-  if (!user || !bcrypt.compareSync(password, user.password)) {
+  if (!user) {
+    if (normalizedEmail === 'admin@u2collective.com') {
+      return res.status(503).json({ error: 'Administrator account is not initialized. Run the Supabase admin recovery migration.' });
+    }
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  if (!bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 

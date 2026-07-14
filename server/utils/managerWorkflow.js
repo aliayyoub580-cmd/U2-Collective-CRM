@@ -9,8 +9,8 @@ const WORKFLOW_STATUSES = [
 ];
 
 const TRANSITIONS = {
-  new: ['assigned_to_manager', 'submitted_by_lead_generator', 'cancelled'],
-  assigned_to_manager: ['new', 'assigned_to_lead_generator', 'submitted_by_lead_generator', 'under_manager_review', 'approved_for_caller', 'cancelled'],
+  new: ['assigned_to_manager', 'assigned_to_caller', 'submitted_by_lead_generator', 'cancelled'],
+  assigned_to_manager: ['new', 'assigned_to_caller', 'submitted_by_lead_generator', 'under_manager_review', 'approved_for_caller', 'cancelled'],
   assigned_to_lead_generator: ['lead_generation_in_progress', 'submitted_by_lead_generator', 'cancelled'],
   lead_generation_in_progress: ['submitted_by_lead_generator', 'cancelled'],
   submitted_by_lead_generator: ['under_manager_review', 'approved_for_caller', 'lead_generation_in_progress', 'rejected'],

@@ -62,18 +62,6 @@ router.get('/leads/:id', asyncHandler(async (req, res) => {
   res.json({ lead: { ...lead, manager_name: users.get(Number(lead.manager_id))?.name || null, lead_generator_name: users.get(Number(lead.lead_generator_id))?.name || null, caller_name: users.get(Number(lead.caller_id))?.name || null }, assignments: assignments.data || [], statusHistory: statuses.data || [], activities: activities.data || [], callerOutcomes: callerOutcomes.data || [], emails: emailsWithDueState, managerOutcome });
 }));
 
-router.post('/leads/:id/assign-lead-generator', asyncHandler(async (req, res) => {
-  const lead = await ownedLead(req.params.id, req.user.id);
-  if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  assertTransition(lead.workflow_status || 'new', 'assigned_to_lead_generator');
-  const generator = await eligibleUser(req.body.lead_generator_id, { role: 'Employee', employeeType: 'lead_generator' });
-  if (!generator) return res.status(400).json({ error: 'Select an active Lead Generator' });
-  await recordAssignment({ lead, type: 'lead_generator', fromUserId: req.user.id, toUserId: generator.id, instructions: req.body.instructions, priority: req.body.priority, dueDate: req.body.due_date });
-  const updated = await transitionLead(lead, 'assigned_to_lead_generator', req.user, 'Assigned to Lead Generator', { assignee: generator.id }, { lead_generator_id: generator.id, current_owner_id: generator.id, priority: req.body.priority || 'Normal', lead_generation_due_date: req.body.due_date || null, lead_generation_instructions: req.body.instructions || null, assigned_to_lead_generator_at: new Date().toISOString(), assigned_to_lead_generator_by: req.user.id });
-  await notifyUsers([generator.id], { lead_id: lead.id, type: 'lead_generator_assignment', title: 'Lead generation work assigned', message: `${lead.lead_id} - ${lead.client_clinic_name || lead.company_name}` });
-  res.json({ lead: updated });
-}));
-
 router.post('/leads/:id/return-to-lead-generator', asyncHandler(async (req, res) => {
   const lead = await ownedLead(req.params.id, req.user.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });

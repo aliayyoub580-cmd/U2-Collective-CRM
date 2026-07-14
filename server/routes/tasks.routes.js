@@ -102,13 +102,21 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
 }));
 
 router.post('/', authenticateToken, requireRole('CEO', 'Manager'), asyncHandler(async (req, res) => {
-  const { title, description, assigned_to, deadline, priority, status } = req.body;
+  const { title, description, assigned_to, deadline, priority, status, lead_id } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
   if (!assigned_to) return res.status(400).json({ error: 'Assigned employee is required' });
   if (!deadline) return res.status(400).json({ error: 'Deadline is required' });
   if (!await activeLeadGenerator(assigned_to)) return res.status(400).json({ error: 'Select an active lead generator' });
+  if (lead_id) {
+    const leadFilters = [['id', 'eq', lead_id]];
+    if (req.user.role === 'Manager') leadFilters.push(['manager_id', 'eq', req.user.id]);
+    const lead = await sb.one('leads', { select: 'id,lead_generator_id', filters: leadFilters });
+    if (!lead) return res.status(404).json({ error: 'Lead not found' });
+    if (Number(lead.lead_generator_id) !== Number(assigned_to)) return res.status(400).json({ error: 'Assign this task to the Lead Generator who created the lead' });
+  }
 
   const task = await sb.insert('tasks', {
+    lead_id: lead_id || null,
     title,
     description,
     assigned_to,

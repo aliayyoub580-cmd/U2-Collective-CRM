@@ -164,11 +164,18 @@ router.patch('/:id/assign', authenticateToken, requireRole('CEO', 'Manager'), as
   if (!caller || caller.status !== 'active' || caller.employee_type !== 'caller') return res.status(400).json({ error: 'Select an active Caller' });
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  if (!lead.manager_id) return res.status(409).json({ error: 'Assign this lead to a Manager before assigning a Caller' });
   if (req.user.role === 'Manager' && Number(lead.manager_id) !== Number(req.user.id)) return res.status(404).json({ error: 'Lead not found' });
-  await sb.update('lead_assignments', [['lead_id', 'eq', lead.id], ['active', 'eq', true]], { active: false });
-  await sb.insert('lead_assignments', { lead_id: lead.id, assigned_to: caller.id, assigned_by: req.user.id, active: true });
-  const updated = await sb.update('leads', [['id', 'eq', lead.id]], { assigned_to: caller.id, status: 'Assigned' });
+  const { assertTransition, transitionLead, recordAssignment } = require('../utils/managerWorkflow');
+  assertTransition(lead.workflow_status || 'new', 'assigned_to_caller');
+  await recordAssignment({ lead, type: 'caller', fromUserId: req.user.id, toUserId: caller.id });
+  const updated = await transitionLead(lead, 'assigned_to_caller', req.user, `${req.user.role} assigned Caller`, { caller_id: caller.id }, {
+    caller_id: caller.id,
+    assigned_to: caller.id,
+    current_owner_id: caller.id,
+    assigned_to_caller_at: new Date().toISOString(),
+    assigned_to_caller_by: req.user.id,
+    status: 'Assigned'
+  });
   await logActivity(req.user.id, `Assigned Lead ${lead.lead_id} to ${caller.name}`, 'leads', lead.id);
   await notifyUsers([caller.id], { lead_id: lead.id, type: 'lead_assigned', title: 'New Lead Assigned', message: `${lead.lead_id} - ${lead.client_clinic_name || lead.company_name}` });
   res.json({ lead: updated });

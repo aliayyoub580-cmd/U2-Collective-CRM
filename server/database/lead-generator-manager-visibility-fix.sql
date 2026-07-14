@@ -4,6 +4,9 @@
 
 BEGIN;
 
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS lead_id BIGINT REFERENCES leads(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_tasks_lead_id ON tasks(lead_id);
+
 UPDATE leads
 SET manager_id = (
       SELECT MIN(id)

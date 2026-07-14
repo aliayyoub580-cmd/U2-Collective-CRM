@@ -11,6 +11,17 @@ import StatusBadge from '../components/StatusBadge';
 const ROLES = ['CEO', 'Manager', 'Sales Representative', 'Marketing', 'Accountant', 'Employee'];
 const initialUserForm = { name: '', email: '', password: '', role: 'Employee', employee_type: '', status: 'active' };
 
+function PasswordInput({ label, value, onChange, visible, onToggle, required = false, placeholder }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <FormInput label={label} type={visible ? 'text' : 'password'} required={required} value={value} onChange={onChange} placeholder={placeholder} autoComplete="new-password" />
+      <button type="button" onClick={onToggle} aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`} title={visible ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '12px', bottom: '11px', border: 0, background: 'transparent', color: '#64748B', cursor: 'pointer', padding: '2px' }}>
+        {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+      </button>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { user, hasRole } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
@@ -50,15 +61,6 @@ export default function SettingsPage() {
 
   const openCreateUser = () => { setUserForm(initialUserForm); setUserErrors({}); setShowUserPassword(false); setEditUser(null); setShowUserModal(true); };
   const openEditUser = (u) => { setUserForm({ name: u.name, email: u.email, password: '', role: u.role, employee_type: u.employee_type || '', status: u.status }); setUserErrors({}); setShowUserPassword(false); setEditUser(u); setShowUserModal(true); };
-
-  const PasswordInput = ({ label, value, onChange, visible, onToggle, required = false, placeholder }) => (
-    <div style={{ position: 'relative' }}>
-      <FormInput label={label} type={visible ? 'text' : 'password'} required={required} value={value} onChange={onChange} placeholder={placeholder} />
-      <button type="button" onClick={onToggle} aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`} title={visible ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '12px', bottom: '11px', border: 0, background: 'transparent', color: '#64748B', cursor: 'pointer', padding: '2px' }}>
-        {visible ? <EyeOff size={17} /> : <Eye size={17} />}
-      </button>
-    </div>
-  );
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
@@ -243,14 +245,15 @@ export default function SettingsPage() {
             <FormInput label="Full Name" required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} />
             <FormInput label="Email" type="email" required value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
             <PasswordInput
-              label={editUser ? 'New Password (optional)' : 'Password'}
+              label={editUser ? 'Reset Password (optional)' : 'Password'}
               required={!editUser}
               visible={showUserPassword}
               onToggle={() => setShowUserPassword(value => !value)}
               value={userForm.password}
               onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-              placeholder={editUser ? 'Leave blank to keep current password' : undefined}
+              placeholder={editUser ? 'Enter a new password or leave unchanged' : undefined}
             />
+            {editUser && <p style={{ marginTop: '-10px', fontSize: '12px', lineHeight: 1.5, color: '#64748B' }}>For security, the current password cannot be viewed. Enter a new password here to reset it, or leave this blank to keep it unchanged.</p>}
             <FormSelect label="Role" value={userForm.role} onChange={(e) => { const role = e.target.value; setUserForm({ ...userForm, role, employee_type: role === 'Employee' ? userForm.employee_type : '' }); setUserErrors({ ...userErrors, employee_type: undefined }); }}>
               {ROLES.map(r => <option key={r}>{r}</option>)}
             </FormSelect>

@@ -35,12 +35,16 @@ app.get('/api/health', (req, res) => {
 app.use('/uploads', express.static(uploadsDir));
 app.use('/api/quran', require('./routes/quran.routes'));
 
-seedSupabase().catch((err) => {
+const seedReady = seedSupabase().catch((err) => {
   console.error('Supabase startup seed skipped:', err.message);
 });
 
 // Routes
-app.use('/api/auth', require('./routes/auth.routes'));
+// Prevent the first login request from racing startup account initialization.
+app.use('/api/auth', async (req, res, next) => {
+  await seedReady;
+  next();
+}, require('./routes/auth.routes'));
 app.use('/api/dashboard', authenticateToken, requireModule('dashboard'), require('./routes/dashboard.routes'));
 app.use('/api/leads', authenticateToken, requireModule('leads'), require('./routes/leads.routes'));
 app.use('/api/followups', authenticateToken, requireModule('followups'), require('./routes/followups.routes'));

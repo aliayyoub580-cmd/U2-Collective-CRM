@@ -1,5 +1,5 @@
--- U2 Collective CRM SQLite to Supabase migration
--- Generated from local SQLite data. Run this in Supabase SQL Editor.
+-- U2 Collective CRM non-destructive Supabase schema migration
+-- Safe to rerun in Supabase SQL Editor. Existing CRM data is preserved.
 
 BEGIN;
 
@@ -171,6 +171,7 @@ ALTER TABLE IF EXISTS leads ADD COLUMN IF NOT EXISTS clinic_email TEXT;
 ALTER TABLE IF EXISTS leads ADD COLUMN IF NOT EXISTS practice_size TEXT;
 ALTER TABLE IF EXISTS leads ADD COLUMN IF NOT EXISTS state TEXT;
 ALTER TABLE IF EXISTS leads ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE IF EXISTS tasks ADD COLUMN IF NOT EXISTS lead_id BIGINT REFERENCES leads(id) ON DELETE CASCADE;
 
 ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_employee_type_check;
 ALTER TABLE IF EXISTS users ADD CONSTRAINT users_employee_type_check
@@ -181,6 +182,7 @@ ALTER TABLE IF EXISTS employees ADD CONSTRAINT employees_employee_type_check
 
 CREATE INDEX IF NOT EXISTS idx_leads_assigned_to ON leads(assigned_to);
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_tasks_lead_id ON tasks(lead_id);
 CREATE INDEX IF NOT EXISTS idx_followups_assigned_to ON followups(assigned_to);
 CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
 CREATE INDEX IF NOT EXISTS idx_daily_quran_ayats_date ON daily_quran_ayats(date);
@@ -204,65 +206,22 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
 
-TRUNCATE TABLE "users", "clients", "leads", "lead_files", "followups", "communications", "tasks", "proposals", "payments", "employees", "activities", "daily_quran_ayats" RESTART IDENTITY CASCADE;
-
--- Create unique indexes after clearing legacy data so stale duplicates cannot
--- prevent a deliberate full reset from completing.
+-- This migration is intentionally non-destructive. Never truncate production
+-- CRM data when applying schema updates.
 CREATE UNIQUE INDEX IF NOT EXISTS employees_user_id_unique ON employees(user_id) WHERE user_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_lead_id_unique ON leads(lead_id) WHERE lead_id IS NOT NULL;
 
--- users: 1 rows
-INSERT INTO "users" ("id", "name", "email", "password", "role", "status", "created_at") VALUES
-  (1, 'Admin CEO', 'admin@u2collective.com', '$2a$10$Hxdd88zZVc.kAeesvusCB.HjsB8rlMnZWSYAq2DW6PRf1Qn2SnZjS', 'CEO', 'active', '2026-07-03 19:52:18');
-SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM "users"), 1), (SELECT COUNT(*) FROM "users") > 0);
-
--- clients: 1 rows
-INSERT INTO "clients" ("id", "company_name", "contact_person", "email", "phone", "country", "services", "monthly_charges", "contract_start", "contract_end", "status", "notes", "created_at") VALUES
-  (1, 'HealthFirst Medical', 'Dr. Alice Brown', 'alice@healthfirst.com', '+1-555-0404', 'USA', 'Medical Billing,Prior Authorization', 4500, '2024-01-01', NULL, 'Active', 'Long-term client since 2024', '2026-07-03 19:52:18');
-SELECT setval(pg_get_serial_sequence('clients', 'id'), COALESCE((SELECT MAX(id) FROM "clients"), 1), (SELECT COUNT(*) FROM "clients") > 0);
-
--- leads: 3 rows
-INSERT INTO "leads" ("id", "lead_id", "company_name", "client_clinic_name", "clinic_website", "clinic_linkedin", "clinic_phone", "clinic_email", "practice_size", "country", "state", "city", "source", "service_interested", "status", "assigned_to", "notes", "created_at", "updated_at") VALUES
-  (1, 'LEAD-00001', 'MedBill Solutions', 'MedBill Solutions', 'https://medbill.example.com', '', '+1-555-0101', 'info@medbill.example.com', 'Small 2 - 5 providers', 'USA', NULL, NULL, 'LinkedIn', 'Medical Billing', 'Not contract', 1, 'Interested in full RCM', '2026-07-03 19:52:18', '2026-07-03 19:52:18'),
-  (2, 'LEAD-00002', 'Digital Boost Agency', 'Digital Boost Agency', 'https://digitalboost.example.com', '', '+1-555-0202', 'hello@digitalboost.example.com', 'Medium 6 - 15 providers', 'UK', NULL, NULL, 'Meta Ads', 'Digital Marketing', 'Follow up', 1, 'Needs SEO + Social Media', '2026-07-03 19:52:18', '2026-07-03 19:52:18'),
-  (3, 'LEAD-00003', 'WebCraft Inc', 'WebCraft Inc', 'https://webcraft.example.com', '', '+1-555-0303', 'contact@webcraft.example.com', 'Larger 15+ provider', 'Canada', NULL, NULL, 'Referral', 'Web Development', 'Meeting scheduled', 1, 'E-commerce project', '2026-07-03 19:52:18', '2026-07-03 19:52:18');
-SELECT setval(pg_get_serial_sequence('leads', 'id'), COALESCE((SELECT MAX(id) FROM "leads"), 1), (SELECT COUNT(*) FROM "leads") > 0);
-
--- lead_files: 0 rows
--- lead_files: 0 rows
-SELECT setval(pg_get_serial_sequence('lead_files', 'id'), COALESCE((SELECT MAX(id) FROM "lead_files"), 1), (SELECT COUNT(*) FROM "lead_files") > 0);
-
--- followups: 0 rows
--- followups: 0 rows
-SELECT setval(pg_get_serial_sequence('followups', 'id'), COALESCE((SELECT MAX(id) FROM "followups"), 1), (SELECT COUNT(*) FROM "followups") > 0);
-
--- communications: 0 rows
--- communications: 0 rows
-SELECT setval(pg_get_serial_sequence('communications', 'id'), COALESCE((SELECT MAX(id) FROM "communications"), 1), (SELECT COUNT(*) FROM "communications") > 0);
-
--- tasks: 0 rows
--- tasks: 0 rows
-SELECT setval(pg_get_serial_sequence('tasks', 'id'), COALESCE((SELECT MAX(id) FROM "tasks"), 1), (SELECT COUNT(*) FROM "tasks") > 0);
-
--- proposals: 0 rows
--- proposals: 0 rows
-SELECT setval(pg_get_serial_sequence('proposals', 'id'), COALESCE((SELECT MAX(id) FROM "proposals"), 1), (SELECT COUNT(*) FROM "proposals") > 0);
-
--- payments: 0 rows
--- payments: 0 rows
-SELECT setval(pg_get_serial_sequence('payments', 'id'), COALESCE((SELECT MAX(id) FROM "payments"), 1), (SELECT COUNT(*) FROM "payments") > 0);
-
--- employees: 1 rows
-INSERT INTO "employees" ("id", "user_id", "name", "role", "salary", "phone", "email", "status", "joining_date", "performance_notes", "created_at") VALUES
-  (1, 1, 'Admin CEO', 'CEO', 15000, '+1-555-0001', 'admin@u2collective.com', 'Active', '2023-01-01', 'Founder and CEO of U2 Collective LLP', '2026-07-03 19:52:18');
-SELECT setval(pg_get_serial_sequence('employees', 'id'), COALESCE((SELECT MAX(id) FROM "employees"), 1), (SELECT COUNT(*) FROM "employees") > 0);
-
--- activities: 0 rows
--- activities: 0 rows
-SELECT setval(pg_get_serial_sequence('activities', 'id'), COALESCE((SELECT MAX(id) FROM "activities"), 1), (SELECT COUNT(*) FROM "activities") > 0);
-
--- daily_quran_ayats: 0 rows
--- daily_quran_ayats: 0 rows
-SELECT setval(pg_get_serial_sequence('daily_quran_ayats', 'id'), COALESCE((SELECT MAX(id) FROM "daily_quran_ayats"), 1), (SELECT COUNT(*) FROM "daily_quran_ayats") > 0);
+-- Bootstrap the documented administrator only when it is missing. Existing
+-- accounts and changed passwords are preserved on every subsequent run.
+INSERT INTO users (name, email, password, role, status)
+SELECT
+  'Admin CEO',
+  'admin@u2collective.com',
+  '$2a$10$Hxdd88zZVc.kAeesvusCB.HjsB8rlMnZWSYAq2DW6PRf1Qn2SnZjS',
+  'CEO',
+  'active'
+WHERE NOT EXISTS (
+  SELECT 1 FROM users WHERE lower(email) = 'admin@u2collective.com'
+);
 
 COMMIT;

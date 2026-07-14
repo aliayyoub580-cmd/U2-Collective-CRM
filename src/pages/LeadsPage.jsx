@@ -47,8 +47,17 @@ export default function LeadsPage() {
     try {
       const response = editing ? await api.put(`/leads/${editing.id}`, form) : await api.post('/leads', form);
       const leadId = editing?.id || response.data.lead.id;
-      if (canAssign && form.assigned_to && String(form.assigned_to) !== String(editing?.assigned_to || '')) await api.patch(`/leads/${leadId}/assign`, { assigned_to: form.assigned_to });
-      setShow(false); setNotice(editing ? 'Lead updated.' : 'Lead created successfully.'); load();
+      setShow(false);
+      setNotice(editing ? 'Lead updated successfully.' : 'Lead created successfully.');
+      await load();
+      if (editing && canAssign && form.assigned_to && String(form.assigned_to) !== String(editing.assigned_to || '')) {
+        try {
+          await api.patch(`/leads/${leadId}/assign`, { assigned_to: form.assigned_to });
+          await load();
+        } catch (assignmentError) {
+          setNotice(`${editing ? 'Lead updated' : 'Lead created'} successfully, but caller assignment failed: ${assignmentError.response?.data?.error || 'Unable to assign caller.'}`);
+        }
+      }
     } catch (e) { setErrors({ general: e.response?.data?.error || 'Unable to save lead.' }); }
     finally { setSaving(false); }
   };

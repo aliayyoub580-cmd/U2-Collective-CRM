@@ -94,7 +94,10 @@ router.delete('/:id', authenticateToken, requireRole('CEO'), asyncHandler(async 
   const existing = await sb.one('users', { select: 'id', filters: [['id', 'eq', req.params.id]] });
   if (!existing) return res.status(404).json({ error: 'User not found' });
 
-  const userReferences = [
+  // Preserve CRM records while removing every foreign-key reference to the
+  // account. Assignment/history rows whose owner is required are removed;
+  // nullable audit fields are retained with their user reference cleared.
+  const nullableReferences = [
     ['leads', ['assigned_to', 'created_by', 'manager_id', 'lead_generator_id', 'caller_id', 'current_owner_id',
       'assigned_to_manager_by', 'assigned_to_lead_generator_by', 'assigned_to_caller_by',
       'caller_completed_by', 'manager_completed_by']],
@@ -102,27 +105,29 @@ router.delete('/:id', authenticateToken, requireRole('CEO'), asyncHandler(async 
     ['followups', ['assigned_to']],
     ['communications', ['created_by']],
     ['activities', ['user_id']],
+    ['lead_status_history', ['changed_by_user_id']],
+    ['lead_activity', ['performed_by_user_id']],
+    ['caller_outcomes', ['manager_id']]
+  ];
+
+  for (const [table, columns] of nullableReferences) {
+    for (const column of columns) {
+      await sb.update(table, [[column, 'eq', req.params.id]], { [column]: null });
+    }
+  }
+
+  const requiredReferences = [
     ['notifications', ['user_id']],
     ['lead_assignments', ['assigned_to', 'assigned_by', 'assigned_from_user_id', 'assigned_to_user_id']],
     ['call_attempts', ['employee_id']],
-    ['caller_outcomes', ['caller_id', 'manager_id']],
-    ['lead_status_history', ['changed_by_user_id']],
-    ['lead_activity', ['performed_by_user_id']],
+    ['caller_outcomes', ['caller_id']],
     ['lead_email_followups', ['manager_id']],
     ['lead_manager_outcomes', ['manager_id']]
   ];
 
-  for (const [table, columns] of userReferences) {
+  for (const [table, columns] of requiredReferences) {
     for (const column of columns) {
-      const reference = await sb.one(table, {
-        select: 'id',
-        filters: [[column, 'eq', req.params.id]]
-      });
-      if (reference) {
-        return res.status(409).json({
-          error: 'This user has linked CRM history and cannot be permanently deleted. Set the account to Inactive instead.'
-        });
-      }
+      await sb.remove(table, [[column, 'eq', req.params.id]]);
     }
   }
 

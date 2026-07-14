@@ -6,7 +6,7 @@ import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: 'admin@u2collective.com', password: 'admin123' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -95,7 +95,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="off">
           <div className="space-y-4">
             {/* Email */}
             <div>
@@ -106,6 +106,8 @@ export default function LoginPage() {
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                 <input
                   type="email"
+                  name="u2crm-login-email"
+                  autoComplete="off"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="Enter your email"
@@ -129,6 +131,8 @@ export default function LoginPage() {
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  name="u2crm-login-password"
+                  autoComplete="new-password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   placeholder="Enter your password"
@@ -176,11 +180,6 @@ export default function LoginPage() {
           </div>
         </form>
 
-        <div style={{ marginTop: '24px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-          <p style={{ fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Default Credentials:</p>
-          <p style={{ fontSize: '12px', color: '#64748B' }}>Email: admin@u2collective.com</p>
-          <p style={{ fontSize: '12px', color: '#64748B' }}>Password: admin123</p>
-        </div>
       </div>
     </div>
   );

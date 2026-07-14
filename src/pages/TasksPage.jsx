@@ -28,17 +28,28 @@ export default function TasksPage() {
   const [form, setForm] = useState(initialForm);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [notice, setNotice] = useState('');
 
-  const fetchTasks = useCallback(async () => {
-    setLoading(true);
+  const fetchTasks = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const res = await api.get('/tasks', { params: { page, limit: 15, status: filterStatus, priority: filterPriority } });
       setTasks(res.data.tasks);
       setTotal(res.data.total);
-    } catch (err) {} finally { setLoading(false); }
+    } catch (err) {
+      setNotice(err.response?.data?.error || 'Unable to refresh tasks.');
+    } finally { if (!silent) setLoading(false); }
   }, [page, filterStatus, filterPriority]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  useEffect(() => {
+    const refresh = () => fetchTasks({ silent: true });
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    const timer = setInterval(refresh, 10000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', onVisible); };
+  }, [fetchTasks]);
   useEffect(() => {
     if (!canManageTasks) return;
     api.get('/employees/users/all', { params: { employee_type: 'lead_generator' } })
@@ -69,21 +80,33 @@ export default function TasksPage() {
       if (editItem) await api.put(`/tasks/${editItem.id}`, form);
       else await api.post('/tasks', form);
       setShowModal(false);
-      fetchTasks();
+      setNotice(editItem ? 'Task updated successfully.' : 'Task created successfully.');
+      await fetchTasks();
     } catch (err) {
       setErrors({ general: err.response?.data?.error || 'Unable to save task.' });
     } finally { setSaving(false); }
   };
 
   const handleStatusChange = async (id, status) => {
+    const previous = tasks.find((task) => task.id === id)?.status;
+    setTasks((current) => current.map((task) => task.id === id ? { ...task, status } : task));
     try {
       await api.patch(`/tasks/${id}/status`, { status });
-      fetchTasks();
-    } catch (err) {}
+      setNotice(`Task marked ${status} successfully.`);
+      if (status === 'Completed') {
+        setPage(1);
+        setFilterStatus('Completed');
+      } else {
+        await fetchTasks({ silent: true });
+      }
+    } catch (err) {
+      setTasks((current) => current.map((task) => task.id === id ? { ...task, status: previous } : task));
+      setNotice(err.response?.data?.error || 'Unable to update task status.');
+    }
   };
 
   const handleDelete = async () => {
-    try { await api.delete(`/tasks/${deleteId}`); fetchTasks(); } catch (err) {}
+    try { await api.delete(`/tasks/${deleteId}`); setNotice('Task deleted successfully.'); await fetchTasks(); } catch (err) { setNotice(err.response?.data?.error || 'Unable to delete task.'); }
     setDeleteId(null);
   };
 
@@ -145,6 +168,7 @@ export default function TasksPage() {
           </>
         }
       />
+      {notice && <div className={`mb-4 rounded-xl border p-3 text-sm font-semibold ${notice.includes('Unable') ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{notice}</div>}
 
       {/* Filters */}
       <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '14px 16px', marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>

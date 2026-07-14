@@ -1,10 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 
 export default function AppLayout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    let timer;
+    const showSuccess = (event) => {
+      setSuccessMessage(event.detail?.message || 'Action completed successfully.');
+      clearTimeout(timer);
+      timer = setTimeout(() => setSuccessMessage(''), 4000);
+    };
+    window.addEventListener('u2crm:mutation-success', showSuccess);
+    return () => { window.removeEventListener('u2crm:mutation-success', showSuccess); clearTimeout(timer); };
+  }, []);
 
   const handleToggleSidebar = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -39,6 +52,13 @@ export default function AppLayout({ children }) {
           </div>
         </main>
       </div>
+      {successMessage && (
+        <div role="status" aria-live="polite" className="fixed right-5 top-5 z-[100] flex max-w-md items-center gap-3 rounded-xl border border-green-200 bg-white px-4 py-3 text-sm font-semibold text-green-800 shadow-xl">
+          <CheckCircle2 size={20} className="shrink-0 text-green-600" />
+          <span>{successMessage}</span>
+          <button type="button" onClick={() => setSuccessMessage('')} className="ml-2 rounded p-1 text-green-700 hover:bg-green-50" aria-label="Close success message"><X size={16} /></button>
+        </div>
+      )}
     </div>
   );
 }

@@ -94,10 +94,42 @@ router.delete('/:id', authenticateToken, requireRole('CEO'), asyncHandler(async 
   const existing = await sb.one('users', { select: 'id', filters: [['id', 'eq', req.params.id]] });
   if (!existing) return res.status(404).json({ error: 'User not found' });
 
-  await sb.update('users', [['id', 'eq', req.params.id]], { status: 'inactive' });
+  const userReferences = [
+    ['leads', ['assigned_to', 'created_by', 'manager_id', 'lead_generator_id', 'caller_id', 'current_owner_id',
+      'assigned_to_manager_by', 'assigned_to_lead_generator_by', 'assigned_to_caller_by',
+      'caller_completed_by', 'manager_completed_by']],
+    ['tasks', ['assigned_to', 'created_by']],
+    ['followups', ['assigned_to']],
+    ['communications', ['created_by']],
+    ['activities', ['user_id']],
+    ['notifications', ['user_id']],
+    ['lead_assignments', ['assigned_to', 'assigned_by', 'assigned_from_user_id', 'assigned_to_user_id']],
+    ['call_attempts', ['employee_id']],
+    ['caller_outcomes', ['caller_id', 'manager_id']],
+    ['lead_status_history', ['changed_by_user_id']],
+    ['lead_activity', ['performed_by_user_id']],
+    ['lead_email_followups', ['manager_id']],
+    ['lead_manager_outcomes', ['manager_id']]
+  ];
+
+  for (const [table, columns] of userReferences) {
+    for (const column of columns) {
+      const reference = await sb.one(table, {
+        select: 'id',
+        filters: [[column, 'eq', req.params.id]]
+      });
+      if (reference) {
+        return res.status(409).json({
+          error: 'This user has linked CRM history and cannot be permanently deleted. Set the account to Inactive instead.'
+        });
+      }
+    }
+  }
+
   const profile = await sb.one('employees', { select: 'id', filters: [['user_id', 'eq', req.params.id]] });
-  if (profile) await sb.update('employees', [['id', 'eq', profile.id]], { status: 'Inactive' });
-  res.json({ message: 'User deactivated' });
+  if (profile) await sb.remove('employees', [['id', 'eq', profile.id]]);
+  await sb.remove('users', [['id', 'eq', req.params.id]]);
+  res.json({ message: 'User deleted successfully' });
 }));
 
 module.exports = router;

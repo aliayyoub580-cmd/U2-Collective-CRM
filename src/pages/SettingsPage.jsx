@@ -82,7 +82,14 @@ export default function SettingsPage() {
   };
 
   const handleDeleteUser = async () => {
-    try { await api.delete(`/users/${deleteUserId}`); setUserNotice('User deactivated successfully.'); api.get('/users').then(r => setUsers(r.data.users || [])); } catch (err) { setUserNotice(err.response?.data?.error || 'Unable to deactivate this user.'); }
+    try {
+      const response = await api.delete(`/users/${deleteUserId}`);
+      setUserNotice(response.data?.message || 'User deleted successfully.');
+      const usersResponse = await api.get('/users');
+      setUsers(usersResponse.data.users || []);
+    } catch (err) {
+      setUserNotice(err.response?.data?.error || 'Unable to delete this user.');
+    }
     setDeleteUserId(null);
   };
 
@@ -266,7 +273,7 @@ export default function SettingsPage() {
         </form>
       </Modal>
 
-      <ConfirmDialog isOpen={!!deleteUserId} onClose={() => setDeleteUserId(null)} onConfirm={handleDeleteUser} title="Deactivate User" message="Deactivate this user account?" confirmLabel="Deactivate" />
+      <ConfirmDialog isOpen={!!deleteUserId} onClose={() => setDeleteUserId(null)} onConfirm={handleDeleteUser} title="Delete User" message="Permanently delete this user account? This cannot be undone." confirmLabel="Delete" />
     </div>
   );
 }

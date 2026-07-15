@@ -42,8 +42,8 @@ router.post('/leads/:id/complete', asyncHandler(async (req, res) => {
   if (!lead) return res.status(404).json({ error: 'Assigned lead not found' });
   if (!['assigned_to_caller', 'caller_in_progress'].includes(lead.workflow_status)) return res.status(409).json({ error: 'This caller outcome has already been submitted or is no longer actionable' });
   assertTransition(lead.workflow_status, 'caller_completed');
-  const allowedCall = ['Connected', 'No Answer', 'Busy', 'Voicemail', 'Wrong Number', 'Call Back Requested', 'Not Reachable', 'Completed'];
-  const allowedInterest = ['Interested', 'Maybe Interested', 'Not Interested', 'Needs Follow-Up', 'Decision Maker Not Reached', 'Unknown'];
+  const allowedCall = ['Called', 'Busy', 'No Answer', 'Wrong Number'];
+  const allowedInterest = ['Interested', 'Not Interested', 'Needs Follow-Up', 'Decision Maker Not Reached'];
   if (!allowedCall.includes(req.body.call_status)) return res.status(400).json({ error: 'Select a valid call status' });
   if (!allowedInterest.includes(req.body.interest_status)) return res.status(400).json({ error: 'Select an interest status' });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.call_date || ''))) return res.status(400).json({ error: 'Call date is required' });

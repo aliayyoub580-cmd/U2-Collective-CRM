@@ -68,7 +68,7 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   if (service) filters.push(['service_interested', 'eq', service]);
 
   const or = search
-    ? `(company_name.ilike.*${search}*,client_clinic_name.ilike.*${search}*,lead_id.ilike.*${search}*,clinic_email.ilike.*${search}*,clinic_phone.ilike.*${search}*,state.ilike.*${search}*,source.ilike.*${search}*)`
+    ? `(company_name.ilike.*${search}*,client_clinic_name.ilike.*${search}*,lead_id.ilike.*${search}*,clinic_website.ilike.*${search}*,clinic_email.ilike.*${search}*,clinic_phone.ilike.*${search}*,state.ilike.*${search}*,source.ilike.*${search}*)`
     : undefined;
 
   const [{ data: leads, count: total }, users] = await Promise.all([
@@ -103,8 +103,8 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
     service_interested, clinic_specialty, source_other, assigned_to, notes, communication_type
   } = req.body;
   const clinicName = client_clinic_name || company_name;
-  if (!clinicName || !clinic_email || !clinic_specialty || !clinic_phone || !state || !city || !source || !practice_size) {
-    return res.status(400).json({ error: 'Clinic name, email, specialty, phone, state, city, source, and clinic size are required' });
+  if (!clinicName || !clinic_specialty || !clinic_phone || !state || !city || !source || !practice_size) {
+    return res.status(400).json({ error: 'Clinic name, specialty, phone, state, city, source, and clinic size are required' });
   }
   if (!STATES.includes(state)) return res.status(400).json({ error: 'Invalid state' });
   if (!LEAD_SOURCES.includes(source) || (source === 'Other' && !source_other?.trim())) return res.status(400).json({ error: 'Select a valid lead source and specify Other when applicable' });
@@ -134,10 +134,10 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
   const createdLead = await sb.insert('leads', {
     company_name: clinicName,
     client_clinic_name: clinicName,
-    clinic_website,
+    clinic_website: clinic_website?.trim() || null,
     clinic_linkedin,
     clinic_phone,
-    clinic_email,
+    clinic_email: clinic_email?.trim() || null,
     practice_size,
     clinic_specialty,
     source_other: source === 'Other' ? source_other.trim() : null,
@@ -196,7 +196,7 @@ router.post('/:id/submit', authenticateToken, asyncHandler(async (req, res) => {
   const lead = await sb.one('leads', { filters: [['id', 'eq', req.params.id], ['lead_generator_id', 'eq', req.user.id]] });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   if (!lead.manager_id) return res.status(409).json({ error: 'An Admin must assign a Manager before this lead can be submitted' });
-  const required = ['client_clinic_name', 'clinic_email', 'clinic_phone', 'clinic_specialty', 'state', 'city', 'source', 'practice_size'];
+  const required = ['client_clinic_name', 'clinic_phone', 'clinic_specialty', 'state', 'city', 'source', 'practice_size'];
   if (required.some((field) => !String(lead[field] || '').trim())) return res.status(400).json({ error: 'Complete all required clinic information before submitting' });
   const { transitionLead } = require('../utils/managerWorkflow');
   const updated = await transitionLead(lead, 'submitted_by_lead_generator', req.user, 'Lead submitted to Manager', {}, { current_owner_id: lead.manager_id, submitted_at: new Date().toISOString() });
@@ -259,7 +259,7 @@ router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
 router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
   if (req.user.role !== 'CEO' && req.user.employee_type !== 'lead_generator') return res.status(403).json({ error: 'You cannot edit leads' });
   const {
-    company_name, client_clinic_name, clinic_phone, clinic_email, clinic_specialty, practice_size, state, city, source,
+    company_name, client_clinic_name, clinic_website, clinic_phone, clinic_email, clinic_specialty, practice_size, state, city, source,
     source_other, assigned_to, notes
   } = req.body;
   const existing = await sb.one('leads', { filters: [['id', 'eq', req.params.id]] });
@@ -272,8 +272,9 @@ router.put('/:id', authenticateToken, asyncHandler(async (req, res) => {
     ...(!existing.lead_id ? { lead_id: formatLeadId(existing.id) } : {}),
     company_name: clinicName,
     client_clinic_name: clinicName,
+    clinic_website: clinic_website?.trim() || null,
     clinic_phone,
-    clinic_email,
+    clinic_email: clinic_email?.trim() || null,
     clinic_specialty,
     practice_size,
     state,

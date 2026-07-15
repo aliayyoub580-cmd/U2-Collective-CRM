@@ -47,7 +47,7 @@ router.post('/leads/:id/complete', asyncHandler(async (req, res) => {
   if (!allowedCall.includes(req.body.call_status)) return res.status(400).json({ error: 'Select a valid call status' });
   if (!allowedInterest.includes(req.body.interest_status)) return res.status(400).json({ error: 'Select an interest status' });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.call_date || ''))) return res.status(400).json({ error: 'Call date is required' });
-  const followUpRequired = req.body.interest_status === 'Needs Follow-Up';
+  const followUpRequired = req.body.follow_up_required === true || req.body.interest_status === 'Needs Follow-Up';
   if (followUpRequired && !/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.follow_up_date || ''))) return res.status(400).json({ error: 'Follow-up date is required' });
   const completedAt = new Date().toISOString();
   const outcome = await sb.insert('caller_outcomes', { lead_id: lead.id, caller_id: req.user.id, manager_id: lead.manager_id || null, call_status: req.body.call_status, contact_result: req.body.contact_result || null, contact_person_name: req.body.contact_person_name || null, contact_person_role: req.body.contact_person_role || null, phone_number_used: req.body.phone_number_used || lead.clinic_phone || null, call_date: req.body.call_date, call_time: req.body.call_time || null, call_duration: req.body.call_duration || null, interest_status: req.body.interest_status, follow_up_required: followUpRequired, follow_up_date: followUpRequired ? req.body.follow_up_date : null, additional_contact_information: req.body.additional_contact_information || null, notes: req.body.notes || null, completed_at: completedAt });

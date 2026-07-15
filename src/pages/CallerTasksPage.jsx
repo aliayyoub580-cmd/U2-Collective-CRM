@@ -46,15 +46,9 @@ export default function CallerTasksPage() {
           <LeadField label="Clinic Size" value={selected.practice_size}/>
           <LeadField label="City" value={selected.city}/>
           <LeadField label="State" value={selected.state}/>
-          <LeadField label="Country" value={selected.country}/>
           <LeadField label="Lead Source" value={selected.source === 'Other' ? selected.source_other : selected.source}/>
-          <LeadField label="Manager" value={selected.manager?.name}/>
-          <LeadField label="Manager Email" value={selected.manager?.email}/>
-          <LeadField label="Manager Phone" value={selected.manager?.work_phone}/>
           <LeadField label="Assigned Date" value={selected.assigned_at ? new Date(selected.assigned_at).toLocaleString() : null}/>
-          <LeadField label="Due Date" value={selected.caller_due_date ? new Date(selected.caller_due_date).toLocaleDateString() : null}/>
-          <div className="sm:col-span-2 lg:col-span-3"><LeadField label="Caller Instructions" value={selected.caller_instructions}/></div>
-          <div className="sm:col-span-2 lg:col-span-3"><LeadField label="Lead Notes" value={selected.notes}/></div>
+          <div className="sm:col-span-2 lg:col-span-3"><LeadField label="Lead Notes" value={selected.notes || selected.caller_instructions}/></div>
         </div>
       </section>
 

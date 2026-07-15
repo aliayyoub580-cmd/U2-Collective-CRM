@@ -9,7 +9,7 @@ const { assertTransition, transitionLead } = require('../utils/managerWorkflow')
 router.use(authenticateToken, (req, res, next) => req.user.employee_type === 'caller' ? next() : res.status(403).json({ error: 'Caller access required' }));
 
 router.get('/leads', asyncHandler(async (req, res) => {
-  const { data } = await sb.list('leads', { filters: [['caller_id', 'eq', req.user.id]], order: 'updated_at.desc', limit: 1000 });
+  const { data } = await sb.list('leads', { filters: [['caller_id', 'eq', req.user.id]], in: [['workflow_status', ['assigned_to_caller', 'caller_in_progress']]], order: 'updated_at.desc', limit: 1000 });
   const managerIds = [...new Set((data || []).map((lead) => lead.manager_id).filter(Boolean))];
   const managers = managerIds.length ? await sb.list('users', { select: 'id,name,email', in: [['id', managerIds]] }) : { data: [] };
   const profiles = managerIds.length ? await sb.list('employees', { select: 'user_id,phone', in: [['user_id', managerIds]] }) : { data: [] };
@@ -47,11 +47,12 @@ router.post('/leads/:id/complete', asyncHandler(async (req, res) => {
   if (!allowedCall.includes(req.body.call_status)) return res.status(400).json({ error: 'Select a valid call status' });
   if (!allowedInterest.includes(req.body.interest_status)) return res.status(400).json({ error: 'Select an interest status' });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.call_date || ''))) return res.status(400).json({ error: 'Call date is required' });
-  if (req.body.follow_up_required === true && !req.body.follow_up_date) return res.status(400).json({ error: 'Follow-up date is required' });
+  const followUpRequired = req.body.interest_status === 'Needs Follow-Up';
+  if (followUpRequired && !/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.follow_up_date || ''))) return res.status(400).json({ error: 'Follow-up date is required' });
   const completedAt = new Date().toISOString();
-  const outcome = await sb.insert('caller_outcomes', { lead_id: lead.id, caller_id: req.user.id, manager_id: lead.manager_id || null, call_status: req.body.call_status, contact_result: req.body.contact_result || null, contact_person_name: req.body.contact_person_name || null, contact_person_role: req.body.contact_person_role || null, phone_number_used: req.body.phone_number_used || lead.clinic_phone || null, call_date: req.body.call_date, call_time: req.body.call_time || null, call_duration: req.body.call_duration || null, interest_status: req.body.interest_status, follow_up_required: req.body.follow_up_required === true, follow_up_date: req.body.follow_up_date || null, additional_contact_information: req.body.additional_contact_information || null, notes: req.body.notes || null, completed_at: completedAt });
+  const outcome = await sb.insert('caller_outcomes', { lead_id: lead.id, caller_id: req.user.id, manager_id: lead.manager_id || null, call_status: req.body.call_status, contact_result: req.body.contact_result || null, contact_person_name: req.body.contact_person_name || null, contact_person_role: req.body.contact_person_role || null, phone_number_used: req.body.phone_number_used || lead.clinic_phone || null, call_date: req.body.call_date, call_time: req.body.call_time || null, call_duration: req.body.call_duration || null, interest_status: req.body.interest_status, follow_up_required: followUpRequired, follow_up_date: followUpRequired ? req.body.follow_up_date : null, additional_contact_information: req.body.additional_contact_information || null, notes: req.body.notes || null, completed_at: completedAt });
   await sb.insert('call_attempts', { lead_id: lead.id, employee_id: req.user.id, call_status: req.body.call_status === 'No Answer' ? 'No Answer' : 'Called', called_at: `${req.body.call_date}T${req.body.call_time || '12:00'}:00.000Z`, notes: req.body.notes || null });
-  if (req.body.follow_up_required === true) await sb.insert('followups', { lead_id: lead.id, title: `Follow up: ${lead.client_clinic_name || lead.company_name}`, followup_date: req.body.follow_up_date, method: 'Phone Call', assigned_to: req.user.id, notes: req.body.notes || null, status: 'Pending' });
+  if (followUpRequired) await sb.insert('followups', { lead_id: lead.id, title: `Follow up: ${lead.client_clinic_name || lead.company_name}`, followup_date: req.body.follow_up_date, method: 'Phone Call', assigned_to: req.user.id, notes: req.body.notes || null, status: 'Pending' });
   const updated = await transitionLead(lead, 'caller_completed', req.user, 'Caller completed outcome', { outcome_id: outcome.id }, { caller_completed_at: completedAt, caller_completed_by: req.user.id, current_owner_id: lead.manager_id || null, status: 'Called', caller_notes: req.body.notes || null });
   const recipients = [lead.manager_id].filter(Boolean);
   const admins = await sb.list('users', { select: 'id', filters: [['role', 'eq', 'CEO'], ['status', 'eq', 'active']] });

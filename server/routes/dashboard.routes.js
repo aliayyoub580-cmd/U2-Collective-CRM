@@ -42,7 +42,7 @@ router.get('/stats', authenticateToken, asyncHandler(async (req, res) => {
   if (user.employee_type === 'lead_generator') {
     leads = leads.filter((lead) => Number(lead.created_by) === Number(user.id));
   } else if (user.employee_type === 'caller') {
-    leads = leads.filter((lead) => Number(lead.assigned_to) === Number(user.id));
+    leads = leads.filter((lead) => Number(lead.caller_id) === Number(user.id) && ['assigned_to_caller', 'caller_in_progress'].includes(lead.workflow_status));
     tasks = tasks.filter((task) => Number(task.assigned_to) === Number(user.id));
     followups = followups.filter((followup) => Number(followup.assigned_to) === Number(user.id));
   } else if (user.role === 'Sales Representative') {
